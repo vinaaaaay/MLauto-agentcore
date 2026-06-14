@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
+  "name": "mcts-handler-project",
+  "version": 1,
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "mcts-handler-project"
+  },
+  "runtimes": [
+    {
+      "name": "mcts-handler",
+      "build": "CodeZip",
+      "entrypoint": "app.py",
+      "codeLocation": ".",
+      "runtimeVersion": "PYTHON_3_10",
+      "networkMode": "PUBLIC",
+      "protocol": "HTTP"
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": []
+}

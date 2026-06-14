@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ir-datasets"
+version = "0.5.11"
+description = "Dummy ir-datasets package to bypass build conflicts"
+requires-python = ">=3.10"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ir_datasets"]

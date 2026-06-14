@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.dockerignore
+agentcore/cdk/cdk.out/
+agentcore/cdk/node_modules/
+agentcore/.cli/
+agentcore/.cache/
+hf_home/

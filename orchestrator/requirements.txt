@@ -1,0 +1,6 @@
+bedrock-agentcore
+requests
+langgraph
+psutil
+python-dotenv
+boto3

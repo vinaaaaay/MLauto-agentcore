@@ -1,0 +1,11 @@
+bedrock-agentcore
+fastapi>=0.110.0
+uvicorn>=0.28.0
+langgraph>=0.2.0
+langchain-openai>=0.3.0
+boto3>=1.34.0
+httpx>=0.27.0
+psutil>=5.9.0
+python-dotenv>=1.0.0
+langchain-openrouter==0.2.3
+mcp

@@ -1,0 +1,7 @@
+agent:
+  name: "semantic-agent"
+  entrypoint: "app:app"
+  environment:
+    OPENAI_API_KEY: ""
+    OPENROUTER_API_KEY: ""
+    AWS_DEFAULT_REGION: "ap-south-1"

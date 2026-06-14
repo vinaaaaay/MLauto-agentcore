@@ -1,0 +1,10 @@
+agent:
+  name: "coder-agent"
+  entrypoint: "app:app"
+  environment:
+    OPENAI_API_KEY: ""
+    OPENROUTER_API_KEY: ""
+    GATEWAY_LAMBDA_NAME: "fame-sandbox-bastion"
+    TARGET_IP: "172.31.41.59"
+    TARGET_PORT: "8080"
+    AWS_DEFAULT_REGION: "ap-south-1"

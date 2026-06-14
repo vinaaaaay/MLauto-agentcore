@@ -1,0 +1,25 @@
+{
+  "$schema": "https://schema.agentcore.aws.dev/v1/agentcore.json",
+  "name": "coder-agent-project",
+  "version": 1,
+  "tags": {
+    "agentcore:created-by": "agentcore-cli",
+    "agentcore:project-name": "coder-agent-project"
+  },
+  "runtimes": [
+    {
+      "name": "coder-agent",
+      "build": "CodeZip",
+      "entrypoint": "app.py",
+      "codeLocation": ".",
+      "runtimeVersion": "PYTHON_3_10",
+      "networkMode": "PUBLIC",
+      "protocol": "HTTP"
+    }
+  ],
+  "memories": [],
+  "credentials": [],
+  "evaluators": [],
+  "onlineEvalConfigs": [],
+  "agentCoreGateways": []
+}
