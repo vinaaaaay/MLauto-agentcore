@@ -16,7 +16,7 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install all Python dependencies via uv (fast, no-cache build)
-RUN uv pip install --system --no-cache -r requirements.txt
+RUN uv pip install --system --no-cache --index-strategy unsafe-best-match -r requirements.txt
 
 # Copy MCP server application code
 COPY mcp_server.py .
