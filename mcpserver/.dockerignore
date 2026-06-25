@@ -1,11 +1,70 @@
-.venv/
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Python cache
 __pycache__/
-*.pyc
+__pycache__*
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+.env
+venv/
+env/
+ENV/
+
+# Node.js
+node_modules/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage*
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+
+# Development
+*.log
+*.bak
+*.swp
+*.swo
+*~
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Version control
 .git/
 .gitignore
+.gitattributes
+
+# Documentation
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Tests
+tests/
+
+# Bedrock AgentCore — keep config but exclude runtime files
+.bedrock_agentcore.yaml
+.bedrock_agentcore/
 .dockerignore
-agentcore/cdk/cdk.out/
-agentcore/cdk/node_modules/
-agentcore/.cli/
-agentcore/.cache/
-hf_home/
+
+# Run/log directory (logs are written at runtime, not needed in image)
+run/

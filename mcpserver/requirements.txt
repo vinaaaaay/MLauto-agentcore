@@ -1,0 +1,19 @@
+# Core AgentCore runtime — version pinned from FAME-fork/bedrockAC/uv.lock
+bedrock-agentcore==1.12.0
+bedrock-agentcore-starter-toolkit==0.3.9
+
+# AWS SDK — version pinned from uv.lock
+boto3==1.43.18
+
+# MCP server framework
+mcp[cli]
+fastapi
+uvicorn
+
+# Vector store & embeddings (MCP server core dependencies)
+faiss-cpu
+FlagEmbedding
+numpy
+
+# Env loading 
+python-dotenv

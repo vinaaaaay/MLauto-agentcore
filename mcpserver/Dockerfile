@@ -1,37 +1,28 @@
-FROM python:3.10-slim
+# Dockerfile for MCP Vector Store Server
+# Follows the same pattern as FAME-fork/bedrockAC/workflows/react_distributed agents.
+#
+# Build context: MLauto-agentcore/ (project root — one level above mcpserver/)
+# Example build command:
+#   docker build -f mcpserver/Dockerfile -t mcp-vector-store .
 
-# Set standard Python container variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV HF_HOME=/app/hf_home
+FROM python:3.12-slim
+
+# Install uv from the official Astral image (same as react_distributed agents)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+# Copy requirements first (layer-cache friendly)
+COPY requirements.txt .
 
-# Install uv for fast dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+# Install all Python dependencies via uv (fast, no-cache build)
+RUN uv pip install --system --no-cache -r requirements.txt
 
-# Copy dependencies manifest and locks
-COPY pyproject.toml uv.lock ./
+# Copy MCP server application code
+COPY mcp_server.py .
+COPY app.py .
 
-# Copy mocks folder so the local wheels are available for installation
-COPY mocks ./mocks
-
-# Install dependencies using uv pip
-RUN uv pip install --system --no-cache . --extra-index-url https://download.pytorch.org/whl/cpu
-
-# Pre-download and cache the BGE embedding model weights inside the image
-RUN python -c "from FlagEmbedding import FlagModel; FlagModel('BAAI/bge-base-en-v1.5')"
-
-# Copy the rest of the application code
-COPY . .
-
-# Expose port 8080 (the default AgentCore runtime port)
+# Port 8080 — AgentCore default for agent runtimes
 EXPOSE 8080
 
-# Run the app
 CMD ["python", "app.py"]

@@ -1,6 +1,0 @@
-agent:
-  name: "mcts-handler"
-  entrypoint: "app:app"
-  environment:
-    AWS_DEFAULT_REGION: "ap-south-1"
-    S3_BUCKET_NAME: ""

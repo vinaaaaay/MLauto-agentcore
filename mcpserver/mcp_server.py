@@ -6,11 +6,14 @@ Decoupled data parser layer allows swapping data sources or document types easil
 Exposes a single tool endpoint: retrieve_tutorials.
 """
 
+import json
 import logging
 import os
 import contextlib
 import io
+import time
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -22,10 +25,56 @@ from mcp.server.fastmcp import FastMCP
 logger = logging.getLogger("vector_store_mcp")
 logging.basicConfig(level=logging.INFO)
 
-# Force Hugging Face to use the bundled hf_home directory if it exists
-bundled_hf_home = Path(__file__).resolve().parent / "hf_home"
-if bundled_hf_home.exists():
-    os.environ["HF_HOME"] = str(bundled_hf_home)
+# ═══════════════════════════════════════════════════════════════════════════
+#  JSON Execution Logger
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _get_log_path() -> Path:
+    """Return path to the JSONL execution log file.
+
+    Writes to <MLauto-agentcore-root>/run/mcp_log.json.
+    Falls back to /tmp/mcp_log.json if the expected directory is unavailable.
+    """
+    # Walk up from this file: mcpserver/ -> MLauto-agentcore/
+    server_dir = Path(__file__).resolve().parent
+    candidate = server_dir.parent / "run" / "mcp_log.json"
+    try:
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        return candidate
+    except OSError:
+        fallback = Path("/tmp/mcp_log.json")
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+def _write_execution_log(record: Dict[str, Any]) -> None:
+    """Append a single execution record as a JSON line to the log file."""
+    log_path = _get_log_path()
+    try:
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        logger.warning(f"Failed to write execution log to {log_path}: {exc}")
+
+
+def log_tool_execution(
+    tool_name: str,
+    params: Dict[str, Any],
+    result_count: int,
+    elapsed_ms: float,
+    error: Optional[str] = None,
+) -> None:
+    """Write a structured execution record to the JSONL log file."""
+    record: Dict[str, Any] = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "tool": tool_name,
+        "params": params,
+        "result_count": result_count,
+        "elapsed_ms": round(elapsed_ms, 3),
+    }
+    if error is not None:
+        record["error"] = error
+    _write_execution_log(record)
 
 os.environ["TRANSFORMERS_NO_ADVISORY_WARNINGS"] = "true"
 
@@ -85,7 +134,7 @@ def get_registry_path() -> Path:
             return nested_path
         return tmp_path
         
-    return Path(__file__).resolve().parent.parent / "perception_agent" / "tools_registry"
+    return Path(__file__).resolve().parent.parent.parent.parent / "MLauto" / "tools_registry"
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  Data Source & Document Abstractions (Modular Data Loading)
@@ -126,9 +175,6 @@ class LocalTutorialParser:
 
     def parse_tutorials(self, tool_name: str, condensed: bool = False) -> List[Document]:
         """Loads and parses tutorials for a specific tool."""
-        if not tool_name:
-            logger.warning("parse_tutorials called with empty or None tool_name.")
-            return []
         subfolder = "condensed_tutorials" if condensed else "tutorials"
         tool_dir = self.registry_path / tool_name / subfolder
         if not tool_dir.exists():
@@ -302,39 +348,64 @@ def retrieve_tutorials(
     Creates and loads the FAISS store index dynamically when invoked.
     """
     logger.info(f"─── retrieve_tutorials (tool_name={tool_name}, top_k={top_k}) ───")
-    
-    if not tool_name or not query:
-        logger.warning(f"retrieve_tutorials received empty input: query={query}, tool_name={tool_name}")
-        return []
-        
-    cache_key = (tool_name, condensed)
-    indexer = get_indexer()
 
-    # Check if index for this tool is already built and cached
-    if cache_key in _INDEX_CACHE:
-        logger.info(f"Using cached FAISS index for {tool_name} (condensed={condensed})")
-        indexer.index, indexer.documents = _INDEX_CACHE[cache_key]
-    else:
-        # 1. Parse documents using the LocalTutorialParser
-        registry_path = get_registry_path()
-        parser = LocalTutorialParser(registry_path)
-        documents = parser.parse_tutorials(tool_name, condensed=condensed)
-        
-        if not documents:
-            logger.warning(f"No documents loaded for tool '{tool_name}' (condensed={condensed})")
-            return []
+    params = {
+        "query": query[:200],  # truncate for log readability
+        "tool_name": tool_name,
+        "top_k": top_k,
+        "condensed": condensed,
+    }
+    _start = time.monotonic()
 
-        # 2. Build index dynamically for this call
-        indexer.build_index(documents)
+    try:
+        cache_key = (tool_name, condensed)
+        indexer = get_indexer()
 
-        # 3. Cache the index
-        if indexer.index is not None:
-            _INDEX_CACHE[cache_key] = (indexer.index, indexer.documents)
+        # Check if index for this tool is already built and cached
+        if cache_key in _INDEX_CACHE:
+            logger.info(f"Using cached FAISS index for {tool_name} (condensed={condensed})")
+            indexer.index, indexer.documents = _INDEX_CACHE[cache_key]
+        else:
+            # 1. Parse documents using the LocalTutorialParser
+            registry_path = get_registry_path()
+            parser = LocalTutorialParser(registry_path)
+            documents = parser.parse_tutorials(tool_name, condensed=condensed)
 
-    # 4. Perform retrieval search
-    results = indexer.search(query, top_k=top_k)
-    logger.info(f"Search found {len(results)} matches for query '{query[:60]}'")
-    return results
+            if not documents:
+                logger.warning(f"No documents loaded for tool '{tool_name}' (condensed={condensed})")
+                log_tool_execution(
+                    "retrieve_tutorials", params,
+                    result_count=0,
+                    elapsed_ms=(time.monotonic() - _start) * 1000,
+                )
+                return []
+
+            # 2. Build index dynamically for this call
+            indexer.build_index(documents)
+
+            # 3. Cache the index
+            if indexer.index is not None:
+                _INDEX_CACHE[cache_key] = (indexer.index, indexer.documents)
+
+        # 4. Perform retrieval search
+        results = indexer.search(query, top_k=top_k)
+        logger.info(f"Search found {len(results)} matches for query '{query[:60]}'")
+
+        log_tool_execution(
+            "retrieve_tutorials", params,
+            result_count=len(results),
+            elapsed_ms=(time.monotonic() - _start) * 1000,
+        )
+        return results
+
+    except Exception as exc:
+        log_tool_execution(
+            "retrieve_tutorials", params,
+            result_count=0,
+            elapsed_ms=(time.monotonic() - _start) * 1000,
+            error=str(exc),
+        )
+        raise
 
 
 # FastAPI SSE Mounting
@@ -356,11 +427,14 @@ app.mount("/", mcp.sse_app())
 if __name__ == "__main__":
     import uvicorn
     import sys
-    
+
     # Ensure the parent folder of this server is in sys.path so uvicorn can import the module
     curr_dir = Path(__file__).resolve().parent
     if str(curr_dir) not in sys.path:
         sys.path.insert(0, str(curr_dir))
-        
-    logger.info("Starting Semantic Vector Store MCP Server on port 8010...")
-    uvicorn.run("mcp_server:app", host="127.0.0.1", port=8010, log_level="info")
+
+    port = int(os.environ.get("PORT", "8080"))
+    host = os.environ.get("HOST", "0.0.0.0")
+    logger.info(f"Starting Semantic Vector Store MCP Server on {host}:{port}...")
+    uvicorn.run("mcp_server:app", host=host, port=port, log_level="info")
+
