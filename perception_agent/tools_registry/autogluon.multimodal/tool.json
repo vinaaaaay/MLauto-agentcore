@@ -1,0 +1,16 @@
+{
+  "name": "autogluon.multimodal",
+  "version": "1.4.1.dev",
+  "description": "AutoGluon Multimodal excels at multimodal classification, regression, document classification, and semantic segmentation tasks. The framework is not optimized for pure tabular data processing and DOES NOT support generative tasks (image generation, text generation, etc.) or audio-related tasks. It also doesn't handle object detection.",
+  "requirements": [],
+  "prompt_template": [
+    "Hyperparameter tuning is unnecessary because the presets is already configured.",
+    "The usage of document prediction is different from image prediction.",
+    "If you encounter ValueError: No model is available for this dataset, this usually means the modality/column_types/preset combination has no matching model in this AutoGluon version — check those against the tutorial before assuming the data path itself is wrong.",
+    "No need to specify model.names, and do not increase default per gpu batch size to avoid OOM errors.",
+    "For semantic segmentation, use single GPU by setting CUDA_VISIBLE_DEVICES=0",
+    "For semantic segmentation, the predicted mask should be saved as greyscale JPG image (squeeze then cv2.imwrite) in \\\"predicted_mask\\\" folder under output folder and save its absolute path in label column.",
+    "AutoGluon MultiModal requires converting multiple label columns into either a single combined label for mutually exclusive cases or training separate predictors for each label in non-exclusive scenarios.",
+    "Default to presets=\\\"medium_quality\\\" unless explicitly given a larger time/hardware budget — high_quality and best_quality assume more time and often GPU than this sandbox has. Valid presets for MultiModalPredictor are exactly medium_quality, high_quality, best_quality — there is no low_quality variant"
+  ]
+}
