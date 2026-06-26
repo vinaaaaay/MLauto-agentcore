@@ -18,9 +18,8 @@ import re
 import time
 import uuid
 from collections import defaultdict
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, Optional
 
 from langchain_openai import ChatOpenAI
 
@@ -337,15 +336,6 @@ def _execute_code_sandbox(
 # ═══════════════════════════════════════════════════════════════════════════
 #  Tool Registry
 # ═══════════════════════════════════════════════════════════════════════════
-
-class TutorialInfo(NamedTuple):
-    """Stores information about a tutorial."""
-    path: Path
-    title: str
-    summary: str
-    score: Optional[float] = None
-    content: Optional[str] = None
-
 
 class _ToolRegistry:
     """
