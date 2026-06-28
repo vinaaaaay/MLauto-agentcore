@@ -117,8 +117,16 @@ class AgentCoreVectorStoreClient:
 
     def __init__(self, agent_runtime_arn: str, region: str = "ap-south-1"):
         import boto3
+        from botocore.config import Config
         self.agent_runtime_arn = agent_runtime_arn
-        self.client = boto3.client("bedrock-agentcore", region_name=region)
+        
+        # Configure client with increased read timeout and no retries
+        config = Config(
+            read_timeout=300,
+            connect_timeout=60,
+            retries={'max_attempts': 1}
+        )
+        self.client = boto3.client("bedrock-agentcore", region_name=region, config=config)
 
     async def retrieve_tutorials(
         self,
