@@ -104,7 +104,9 @@ def handle(payload: dict) -> dict:
     try:
         if action == "init":
             perception_results = payload.get("perception_results", {})
-            selected_tools = perception_results.get("selected_tools") or payload.get("selected_tools", ["machine learning"])
+            selected_tools = perception_results.get("selected_tools") or payload.get("selected_tools")
+            if not selected_tools:
+                raise ValueError("No tools selected or available in perception_results or payload.")
             mcts_config = payload.get("config", {}).get("mcts", {})
             
             tree = TreeStore.initialize(mcts_config, selected_tools)

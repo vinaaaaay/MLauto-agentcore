@@ -282,7 +282,7 @@ class TreeStore:
         """Rotate through available tools (round-robin)."""
         tools = tree.get("selected_tools", [])
         if not tools:
-            return "machine learning"
+            raise ValueError("No tools selected or available in MCTS tree for task.")
         idx = tree.get("tool_index", 0)
         tool = tools[idx % len(tools)]
         tree["tool_index"] = idx + 1
