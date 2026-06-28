@@ -48,7 +48,6 @@ try:
         MAX_CHARS_PER_FILE,
         MAX_FILE_GROUP_SIZE_TO_SHOW,
         NUM_EXAMPLE_FILES_TO_SHOW,
-        DEFAULT_LIBRARY,
     )
     from .common_local.metrics_context import MetricsContext
     from .common_local.metrics_emitter import node_metrics, emit_event
@@ -73,7 +72,6 @@ except ImportError:
         MAX_CHARS_PER_FILE,
         MAX_FILE_GROUP_SIZE_TO_SHOW,
         NUM_EXAMPLE_FILES_TO_SHOW,
-        DEFAULT_LIBRARY,
     )
     from common_local.metrics_context import MetricsContext
     from common_local.metrics_emitter import node_metrics, emit_event
@@ -233,17 +231,21 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
         llm = _get_llm(config.get("llm"))
         sandbox = _get_sandbox_client(config)
 
-        # 1. Collect all files from the sandbox
+
+        # 1. Collect all files from the sandbox (local path case)
         all_files_with_sizes = _get_all_files_sandbox(input_folder, sandbox, active_logger, active_ctx)
         all_files = [(rel, abs_path) for rel, abs_path, _ in all_files_with_sizes]
         file_sizes = {abs_path: size for _, abs_path, size in all_files_with_sizes}
 
         if not all_files:
             logger.error(f"  No files found in sandbox folder {input_folder}")
-            return {"data_prompt": (
-                f"Absolute path to the folder: {input_folder}\n\n"
-                f"Unable to list files in this folder. It may be empty or inaccessible."
-            )}
+            return {
+                "data_prompt": (
+                    f"Absolute path to the folder: {input_folder}\n\n"
+                    f"Unable to list files in this folder. It may be empty or inaccessible."
+                ),
+                "input_data_folder": input_folder
+            }
 
         logger.info(f"  Found {len(all_files)} files in sandbox folder {input_folder}")
 
@@ -287,7 +289,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
             data_prompt += f"{info}\nContent:\n{content}\n{separator}\n"
 
         logger.info(f"  data_prompt assembled: {len(data_prompt)} chars")
-        return {"data_prompt": data_prompt}
+        return {"data_prompt": data_prompt, "input_data_folder": input_folder}
 
     # ─── Node 2: find_description_files ──────────────────────────────────
 
@@ -466,16 +468,10 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
                         logger.warning(f"  Tool '{name}' not found and no close match. Skipping.")
 
         if not prioritized_tools:
-            logger.warning(f"  Could not parse tools from LLM response. Defaulting to '{DEFAULT_LIBRARY}'.")
-            prioritized_tools = [DEFAULT_LIBRARY]
-            if active_ctx and active_logger:
-                emit_event(active_logger, {
-                    **active_ctx.snapshot(),
-                    "event_type": "warning",
-                    "node_name": "select_tools",
-                    "warning": f"LLM failed to select valid tool. Defaulting to '{DEFAULT_LIBRARY}'.",
-                    "raw_response": content
-                })
+            raise ValueError(
+                "No valid ML tools were selected or parsed by the Perception Agent. "
+                "Ensure that the input data path is accessible to the Perception Agent (e.g. S3 URI or mounted path)."
+            )
 
         current_tool = prioritized_tools[0]
         tool_prompt = registry.get_tool_prompt(current_tool)

@@ -100,7 +100,7 @@ agentcore deploy $DEPLOY_FLAGS "$@" \
     --env AWS_DEFAULT_REGION="${AWS_REGION}" \
     --env SANDBOX_URL="${SANDBOX_URL}" \
     --env GATEWAY_LAMBDA_NAME="${GATEWAY_LAMBDA_NAME:-fame-sandbox-bastion}" \
-    --env TARGET_IP="${TARGET_IP:-172.31.41.59}" \
+    --env TARGET_IP="${TARGET_IP:-172.31.41.84}" \
     --env TARGET_PORT="${TARGET_PORT:-8080}" \
     --env OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
     --env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \

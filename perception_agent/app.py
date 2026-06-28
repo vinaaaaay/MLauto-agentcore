@@ -119,6 +119,7 @@ def handle(payload: dict) -> dict:
             "selected_tools": result.get("selected_tools", []),
             "current_tool": result.get("current_tool", ""),
             "tool_prompt": result.get("tool_prompt", ""),
+            "input_data_folder": result.get("input_data_folder", ""),
         }
 
     except Exception as exc:

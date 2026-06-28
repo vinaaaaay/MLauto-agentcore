@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 MAX_CHARS_PER_FILE = 768
 MAX_FILE_GROUP_SIZE_TO_SHOW = 5
 NUM_EXAMPLE_FILES_TO_SHOW = 1
-DEFAULT_LIBRARY = "machine learning"
+DEFAULT_LIBRARY = "machine_learning"
 
 _DEFAULT_REGISTRY_PATH = Path(__file__).resolve().parent / "tools_registry"
 
