@@ -198,6 +198,7 @@ async def _run_semantic_core(
         "tutorial_prompt": tutorial_prompt,
         "session_id":      session_id,
         "current_tool":    current_tool,
+        "mcp_calls":       result.get("mcp_calls", []),
     }
 
 
@@ -244,6 +245,7 @@ def handle(payload: dict) -> dict:
         return {
             "tutorial_prompt": result.get("tutorial_prompt", ""),
             "status":          "COMPLETED",
+            "mcp_calls":       result.get("mcp_calls", []),
         }
 
     except Exception as exc:
@@ -263,6 +265,7 @@ def handle(payload: dict) -> dict:
             "tutorial_prompt": "",
             "status":          "FAILED",
             "error":           str(exc),
+            "mcp_calls":       [],
         }
 
 

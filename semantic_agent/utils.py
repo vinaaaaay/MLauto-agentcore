@@ -27,7 +27,7 @@ class TutorialInfo(NamedTuple):
     content: Optional[str] = None
 
 
-class SemanticAgentState(TypedDict):
+class SemanticAgentState(TypedDict, total=False):
     """
     State representing the data flow through the Semantic Agent graph.
     Supports a flexible dictionary model to easily support additional parameters.
@@ -47,6 +47,7 @@ class SemanticAgentState(TypedDict):
     search_query: str
     tutorial_retrieval: List[TutorialInfo]
     tutorial_prompt: str
+    mcp_calls: List[Dict[str, Any]]
 
 
 # ═══════════════════════════════════════════════════════════════════════════

@@ -234,7 +234,9 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
         # Extract LangGraph callbacks so MCP client can trigger on_tool_start/on_tool_end
         callbacks = config.get("callbacks", []) if config else []
 
+        mcp_calls = []
         try:
+            t0 = time.time()
             raw_tutorials = await _mcp_tool_call(
                 server_url=server_url,
                 query=query,
@@ -243,7 +245,44 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
                 condensed=condensed,
                 callbacks=callbacks,
             )
+            elapsed = time.time() - t0
+            
+            mcp_output = {
+                "results": raw_tutorials,
+                "result_count": len(raw_tutorials),
+                "query": query,
+                "tool_name": tool_name
+            }
+            
+            call_log = {
+                "timestamp": datetime.now().isoformat(),
+                "skill": "mcp_retrieve_tutorials",
+                "input": {
+                    "query": query,
+                    "tool_name": tool_name,
+                    "top_k": top_k,
+                    "condensed": condensed
+                },
+                "output": mcp_output,
+                "time_taken_seconds": round(elapsed, 3)
+            }
+            mcp_calls.append(call_log)
         except Exception as e:
+            elapsed = time.time() - t0
+            call_log = {
+                "timestamp": datetime.now().isoformat(),
+                "skill": "mcp_retrieve_tutorials",
+                "input": {
+                    "query": query,
+                    "tool_name": tool_name,
+                    "top_k": top_k,
+                    "condensed": condensed
+                },
+                "output": None,
+                "error": str(e),
+                "time_taken_seconds": round(elapsed, 3)
+            }
+            mcp_calls.append(call_log)
             logger.error(f"Vector Store MCP retrieval call failed: {e}")
             raw_tutorials = []
 
@@ -262,7 +301,7 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
                 logger.warning(f"Failed to deserialize tutorial: {e}")
 
         logger.info(f"Retrieved {len(tutorials)} tutorial candidates from MCP server")
-        return {"tutorial_retrieval": tutorials}
+        return {"tutorial_retrieval": tutorials, "mcp_calls": mcp_calls}
 
     @node_metrics(active_ctx, active_logger, "rerank_tutorials")
     def rerank_tutorials(state: SemanticAgentState, config: dict = None) -> dict:
