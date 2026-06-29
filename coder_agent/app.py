@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any, Dict
@@ -44,6 +45,12 @@ _graph = build_coder_agent_graph(ctx=ctx, metric_logger=metric_logger)
 logger.info("Coder Agent synchronous LangGraph compiled successfully.")
 
 app = BedrockAgentCoreApp()
+
+# ─── In-memory result stores ─────────────────────────────────────────────────
+# Background polling thread writes here; check_status reads and pops.
+_completed_jobs: Dict[str, Dict[str, Any]] = {}
+_failed_jobs: Dict[str, Dict[str, Any]] = {}
+_job_store_lock = threading.Lock()
 
 async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> Dict[str, Any]:
     """Runs LLM generation, writes files, executes synchronously inside sandbox, and evaluates."""
@@ -110,6 +117,66 @@ async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> 
     })
 
     return result
+
+
+def _background_poll_and_evaluate(
+    job_id: str,
+    task_id: int,
+    payload: Dict[str, Any],
+    invocation_start_ms: int,
+) -> None:
+    """
+    Background thread:
+    1. Generates code and submits the job to the sandbox (_run_coder_core).
+    2. Polls the sandbox every 30s until the training job completes.
+    3. Runs LLM evaluation, stores results in memory, and completes the task.
+    """
+    logger.info(f"[BG] Background thread started for job_id={job_id}")
+    try:
+        # Step 1: Run LLM generation and submit job to sandbox
+        logger.info(f"[BG] Initiating code generation & sandbox submission for job_id={job_id}...")
+        asyncio.run(_run_coder_core(payload, invocation_start_ms))
+        logger.info(f"[BG] Sandbox job for job_id={job_id} successfully launched.")
+
+        # Step 2: Poll sandbox status until completion
+        poll_interval = 30
+        check_payload = {
+            "job_id": job_id,
+            "config": payload.get("config", {}),
+            "task_description": payload.get("task_description", ""),
+            "data_prompt": payload.get("data_prompt", ""),
+        }
+
+        while True:
+            time.sleep(poll_interval)
+            logger.info(f"[BG] Polling sandbox for job_id={job_id}...")
+            try:
+                result = asyncio.run(_check_coder_status(check_payload))
+            except Exception as poll_exc:
+                logger.error(f"[BG] Sandbox poll error for job_id={job_id}: {poll_exc}")
+                result = {"status": "RUNNING"}  # optimistic: keep retrying
+
+            status = result.get("status")
+            if status == "RUNNING":
+                logger.info(f"[BG] job_id={job_id} still running.")
+                continue
+            elif status == "COMPLETED":
+                logger.info(f"[BG] job_id={job_id} COMPLETED. Storing result.")
+                with _job_store_lock:
+                    _completed_jobs[job_id] = result
+                break
+            else:  # FAILED or unexpected
+                logger.warning(f"[BG] job_id={job_id} FAILED: {result.get('error', '')}")
+                with _job_store_lock:
+                    _failed_jobs[job_id] = result
+                break
+    except Exception as exc:
+        logger.error(f"[BG] Fatal error in background thread for job_id={job_id}: {exc}", exc_info=True)
+        with _job_store_lock:
+            _failed_jobs[job_id] = {"status": "FAILED", "error": str(exc)}
+    finally:
+        app.complete_async_task(task_id)
+        logger.info(f"[BG] Background thread finished for job_id={job_id}. Session released.")
 
 
 async def _check_coder_status(payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -250,35 +317,82 @@ async def _check_coder_status(payload: Dict[str, Any]) -> Dict[str, Any]:
 def handle(payload: dict) -> dict:
     """
     Main AgentCore app entrypoint.
-    Executes code generation or checks the status of background task execution.
+
+    Actions:
+    - generate_and_run: Generate code, launch sandbox training job, register
+      async task (HealthyBusy), spawn background polling thread, return ACCEPTED.
+    - check_status: In-memory lookup of the result stored by the background
+      thread. Returns RUNNING until the thread completes, then COMPLETED/FAILED.
     """
     invocation_start_ms = int(time.time() * 1000)
     ctx.init_from_payload(payload)
-    
+
     action = payload.get("action", "generate_and_run")
     logger.info(f"Coder Agent Invoked: action={action}")
 
     try:
         if action == "generate_and_run":
-            result = asyncio.run(_run_coder_core(payload, invocation_start_ms))
-            
+            # ── Predict job_id from payload (deterministic mapping) ─────────
+            node_id = payload.get("node_id")
+            iteration = payload.get("iteration", 0)
+            job_id = f"node_{node_id}" if node_id is not None else f"iteration_{iteration}"
+
+            # ── Phase 1: Register async task → session stays HealthyBusy ────
+            # The SDK sets /ping to HealthyBusy while _active_tasks is non-empty,
+            # keeping this session alive past the 15-minute idle timeout.
+            task_id = app.add_async_task(
+                "training_job", metadata={"job_id": job_id}
+            )
+            logger.info(
+                f"Registered async task (id={task_id}) for job_id={job_id}. "
+                f"Session will report HealthyBusy until training completes."
+            )
+
+            # ── Phase 2: Spawn background thread to perform generation + launch + poll ──
+            # The thread does the LLM generation, sandbox submission, polling, and evaluation.
+            bg_thread = threading.Thread(
+                target=_background_poll_and_evaluate,
+                args=(job_id, task_id, payload, invocation_start_ms),
+                daemon=True,
+                name=f"poll-{job_id}",
+            )
+            bg_thread.start()
+            logger.info(f"Background execution thread started for job_id={job_id}.")
+
             emit_event(metric_logger, {
                 **ctx.snapshot(),
                 "event_type": "invocation",
-                "status": "COMPLETED",
+                "status": "ACCEPTED",
                 "invocation_start_ms": invocation_start_ms,
                 "total_ms": int(time.time() * 1000) - invocation_start_ms,
             })
 
             return {
                 "status": "ACCEPTED",
-                "job_id": result.get("job_id", ""),
-                "python_code": result.get("python_code", ""),
-                "bash_script": result.get("bash_script", ""),
+                "job_id": job_id,
+                "python_code": "",
+                "bash_script": "",
             }
+
         elif action == "check_status":
-            result = asyncio.run(_check_coder_status(payload))
-            return result
+            # ── In-memory lookup — no sandbox calls, no cold start ───────────
+            # The background thread writes to _completed_jobs / _failed_jobs
+            # when training finishes. Until then we return RUNNING.
+            job_id = payload.get("job_id", "")
+            if not job_id:
+                raise ValueError("Missing 'job_id' for check_status action.")
+
+            with _job_store_lock:
+                if job_id in _completed_jobs:
+                    logger.info(f"check_status: job_id={job_id} → COMPLETED (in-memory)")
+                    return _completed_jobs.pop(job_id)
+                elif job_id in _failed_jobs:
+                    logger.info(f"check_status: job_id={job_id} → FAILED (in-memory)")
+                    return _failed_jobs.pop(job_id)
+                else:
+                    logger.info(f"check_status: job_id={job_id} → RUNNING (background thread active)")
+                    return {"status": "RUNNING"}
+
         else:
             raise ValueError(f"Unknown action: {action}")
 
