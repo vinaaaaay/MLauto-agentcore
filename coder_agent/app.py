@@ -70,12 +70,16 @@ async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> 
     sandbox_url = config.get("sandbox_url") or os.environ.get("SANDBOX_URL")
     sandbox = SandboxClient(sandbox_url)
 
+    current_tool = payload.get("current_tool")
+    if not current_tool:
+        raise ValueError("Missing 'current_tool' in payload for CodingAgent.")
+
     initial_state = {
         "config": config,
         "task_description": payload.get("task_description", ""),
         "data_prompt": payload.get("data_prompt", ""),
         "user_input": payload.get("user_input", ""),
-        "current_tool": payload.get("current_tool", "machine learning"),
+        "current_tool": current_tool,
         "tool_prompt": payload.get("tool_prompt", ""),
         "tutorial_prompt": payload.get("tutorial_prompt", ""),
         "all_error_analyses": payload.get("all_error_analyses", []),
@@ -108,39 +112,175 @@ async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> 
     return result
 
 
+async def _check_coder_status(payload: Dict[str, Any]) -> Dict[str, Any]:
+    job_id = payload.get("job_id")
+    if not job_id:
+        raise ValueError("Missing 'job_id' for check_status action.")
+        
+    config = payload.get("config", {})
+    sandbox_url = config.get("sandbox_url") or os.environ.get("SANDBOX_URL")
+    sandbox = SandboxClient(sandbox_url)
+    
+    iter_folder = f"/home/gem/workspace/{job_id}"
+    
+    # 1. Check if exit_code.txt exists (job finished)
+    success, stdout_ec, stderr_ec = await sandbox.exec_shell(
+        "test -f exit_code.txt && cat exit_code.txt", cwd=iter_folder
+    )
+    
+    if not success:
+        # exit_code.txt does not exist yet. Check if the job is still running.
+        # Strategy: Try multiple detection methods in order of reliability.
+        
+        # Method 1: Check run.pid if it exists
+        pid_alive = False
+        success_pid, pid_out, _ = await sandbox.exec_shell(
+            "test -f run.pid && cat run.pid", cwd=iter_folder
+        )
+        if success_pid and pid_out.strip():
+            pid = pid_out.strip()
+            alive_check, _, _ = await sandbox.exec_shell(
+                f"kill -0 {pid} 2>/dev/null", cwd=""
+            )
+            if alive_check:
+                pid_alive = True
+        
+        # Method 2: Check if execution_script.sh is running via pgrep
+        if not pid_alive:
+            success_pgrep, pgrep_out, _ = await sandbox.exec_shell(
+                f"pgrep -f 'execution_script.sh' || pgrep -f '{iter_folder}'", cwd=""
+            )
+            if success_pgrep and pgrep_out.strip():
+                pid_alive = True
+        
+        # Method 3: Check if stderr.log is actively growing (take two snapshots)
+        if not pid_alive:
+            success_sz1, sz1_out, _ = await sandbox.exec_shell(
+                "stat -c %s stderr.log 2>/dev/null || echo 0", cwd=iter_folder
+            )
+            if success_sz1:
+                import asyncio as _asyncio
+                await _asyncio.sleep(2)
+                success_sz2, sz2_out, _ = await sandbox.exec_shell(
+                    "stat -c %s stderr.log 2>/dev/null || echo 0", cwd=iter_folder
+                )
+                if success_sz2:
+                    try:
+                        sz1 = int(sz1_out.strip())
+                        sz2 = int(sz2_out.strip())
+                        if sz2 > sz1:
+                            pid_alive = True
+                    except ValueError:
+                        pass
+        
+        if pid_alive:
+            return {"status": "RUNNING"}
+        else:
+            # All detection methods failed — job likely died
+            stderr_content = ""
+            try:
+                stderr_content = await sandbox.read_file(f"{iter_folder}/stderr.log")
+            except Exception:
+                pass
+            return {
+                "status": "FAILED",
+                "error": f"Background execution died unexpectedly. Stderr: {stderr_content}"
+            }
+            
+    # exit_code.txt exists. Retrieve logs and evaluate.
+    exit_code_str = stdout_ec.strip()
+    logger.info(f"Background job {job_id} finished with exit code {exit_code_str}. Evaluating results...")
+    
+    # Read stdout and stderr logs
+    stdout_content = ""
+    stderr_content = ""
+    try:
+        stdout_content = await sandbox.read_file(f"{iter_folder}/stdout.log")
+    except Exception as e:
+        logger.warning(f"Could not read stdout.log: {e}")
+        
+    try:
+        stderr_content = await sandbox.read_file(f"{iter_folder}/stderr.log")
+    except Exception as e:
+        logger.warning(f"Could not read stderr.log: {e}")
+        
+    # Read python and bash scripts
+    python_code = ""
+    try:
+        python_code = await sandbox.read_file(f"{iter_folder}/generated_code.py")
+    except Exception as e:
+        logger.warning(f"Could not read generated_code.py: {e}")
+        
+    bash_script = ""
+    try:
+        bash_script = await sandbox.read_file(f"{iter_folder}/execution_script.sh")
+    except Exception as e:
+        logger.warning(f"Could not read execution_script.sh: {e}")
+        
+    # Initialize LLM config for evaluation
+    llm_config = config.get("llm", {}).copy()
+    if "model" not in llm_config:
+        llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
+        
+    from coder_agent.agent import evaluate_execution_results
+    
+    eval_result = await evaluate_execution_results(
+        llm_config=llm_config,
+        task_description=payload.get("task_description", ""),
+        data_prompt=payload.get("data_prompt", ""),
+        python_code=python_code,
+        stdout=stdout_content,
+        stderr=stderr_content,
+    )
+    
+    return {
+        "status": "COMPLETED",
+        "python_code": python_code,
+        "bash_script": bash_script,
+        "stdout": stdout_content,
+        "stderr": stderr_content,
+        "decision": eval_result.get("decision", "FIX"),
+        "validation_score": eval_result.get("validation_score"),
+        "error_message": eval_result.get("error_message", ""),
+        "error_analysis": eval_result.get("error_analysis", "")
+    }
+
+
 @app.entrypoint
 def handle(payload: dict) -> dict:
     """
     Main AgentCore app entrypoint.
-    Executes code generation, blocking execution inside sandbox, and evaluates results.
+    Executes code generation or checks the status of background task execution.
     """
     invocation_start_ms = int(time.time() * 1000)
     ctx.init_from_payload(payload)
     
-    logger.info("Coder Agent Invoked synchronously")
+    action = payload.get("action", "generate_and_run")
+    logger.info(f"Coder Agent Invoked: action={action}")
 
     try:
-        result = asyncio.run(_run_coder_core(payload, invocation_start_ms))
-        
-        emit_event(metric_logger, {
-            **ctx.snapshot(),
-            "event_type": "invocation",
-            "status": "COMPLETED",
-            "invocation_start_ms": invocation_start_ms,
-            "total_ms": int(time.time() * 1000) - invocation_start_ms,
-        })
+        if action == "generate_and_run":
+            result = asyncio.run(_run_coder_core(payload, invocation_start_ms))
+            
+            emit_event(metric_logger, {
+                **ctx.snapshot(),
+                "event_type": "invocation",
+                "status": "COMPLETED",
+                "invocation_start_ms": invocation_start_ms,
+                "total_ms": int(time.time() * 1000) - invocation_start_ms,
+            })
 
-        return {
-            "status": "COMPLETED",
-            "python_code": result.get("python_code", ""),
-            "bash_script": result.get("bash_script", ""),
-            "stdout": result.get("stdout", ""),
-            "stderr": result.get("stderr", ""),
-            "decision": result.get("decision", "FIX"),
-            "validation_score": result.get("validation_score"),
-            "error_message": result.get("error_message", ""),
-            "error_analysis": result.get("error_analysis", "")
-        }
+            return {
+                "status": "ACCEPTED",
+                "job_id": result.get("job_id", ""),
+                "python_code": result.get("python_code", ""),
+                "bash_script": result.get("bash_script", ""),
+            }
+        elif action == "check_status":
+            result = asyncio.run(_check_coder_status(payload))
+            return result
+        else:
+            raise ValueError(f"Unknown action: {action}")
 
     except Exception as exc:
         logger.error(f"[handle] Execution error: {exc}", exc_info=True)

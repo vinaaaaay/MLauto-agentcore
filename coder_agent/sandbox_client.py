@@ -41,7 +41,7 @@ class SandboxClient:
         if not self.gateway_lambda_name:
             self.gateway_lambda_name = "fame-sandbox-bastion"
 
-        self.target_ip = os.environ.get("TARGET_IP", "172.31.41.59")
+        self.target_ip = os.environ.get("TARGET_IP", "172.31.41.84")
         self.target_port = int(os.environ.get("TARGET_PORT", "8080"))
         self.region_name = os.environ.get("AWS_DEFAULT_REGION", "ap-south-1")
         
@@ -49,7 +49,13 @@ class SandboxClient:
             f"SandboxClient operating in Lambda Gateway mode. "
             f"Target: {self.gateway_lambda_name} -> {self.target_ip}:{self.target_port}"
         )
-        self.lambda_client = boto3.client("lambda", region_name=self.region_name)
+        from botocore.config import Config
+        config = Config(
+            read_timeout=900,
+            connect_timeout=60,
+            retries={'max_attempts': 1}
+        )
+        self.lambda_client = boto3.client("lambda", region_name=self.region_name, config=config)
         self._request_id = 0
 
     def _next_id(self) -> int:

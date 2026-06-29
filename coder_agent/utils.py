@@ -42,6 +42,7 @@ class CoderAgentState(TypedDict, total=False):
     error_summary: Optional[str]
     validation_score: Optional[float]
     error_message: str
+    job_id: str   # Background execution job identifier (e.g. "node_1")
 
 # ─── CoderAgent Prompts (Python) ───
 

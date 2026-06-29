@@ -104,7 +104,10 @@ agentcore deploy $DEPLOY_FLAGS "$@" \
     --env S3_BUCKET_NAME="${S3_BUCKET_NAME}" \
     --env OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
     --env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
-    --env LLM_MODEL="${LLM_MODEL:-}"
+    --env LLM_MODEL="${LLM_MODEL:-}" \
+    --env TARGET_IP="${TARGET_IP:-172.31.41.84}" \
+    --env TARGET_PORT="${TARGET_PORT:-8080}" \
+    --env GATEWAY_LAMBDA_NAME="${GATEWAY_LAMBDA_NAME:-fame-sandbox-bastion}"
 
 echo ""
 echo "=========================================================="

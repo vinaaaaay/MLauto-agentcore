@@ -79,6 +79,86 @@ def _init_llm(llm_config: dict):
         )
 
 
+async def evaluate_execution_results(
+    llm_config: dict,
+    task_description: str,
+    data_prompt: str,
+    python_code: str,
+    stdout: str,
+    stderr: str,
+) -> dict:
+    """Evaluates the execution stdout and stderr using the LLM."""
+    llm = _init_llm(llm_config)
+    
+    # Truncate outputs for LLM evaluation
+    def truncate_start(text, max_len=8192):
+        if len(text) > max_len:
+            return f"[...TRUNCATED ({len(text) - max_len} chars)...]\n" + text[-max_len:]
+        return text
+
+    def _docker_translate(text: str) -> str:
+        if not text:
+            return ""
+        text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
+        text = text.replace("/workspace/data", "/home/gem/workspace/data")
+        text = text.replace("/workspace/output", "/home/gem/workspace")
+        text = text.replace("/workspace", "/home/gem/workspace")
+        text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
+        return text
+
+    prompt = EXECUTER_PROMPT.format(
+        task_description=_docker_translate(task_description),
+        data_prompt=_docker_translate(data_prompt),
+        python_code=python_code,
+        stdout=truncate_start(stdout) or "No standard output",
+        stderr=truncate_start(stderr) or "No standard error",
+    )
+
+    response = await llm.ainvoke(prompt)
+    content = response.content
+
+    # Parse evaluation decisions
+    decision = "FIX"
+    if "DECISION:" in content:
+        for line in content.split("\n"):
+            if "DECISION:" in line:
+                if "SUCCESS" in line.upper():
+                    decision = "SUCCESS"
+                break
+
+    error_summary = None
+    if "ERROR_SUMMARY:" in content:
+        es = content.split("ERROR_SUMMARY:")[1].strip().split("\n")[0].strip()
+        if es.lower() != "none" and es:
+            error_summary = es
+
+    validation_score = None
+    if "VALIDATION_SCORE:" in content:
+        vs_text = content.split("VALIDATION_SCORE:")[1].strip().split("\n")[0].strip()
+        if vs_text.lower() != "none" and vs_text:
+            try:
+                validation_score = float(vs_text)
+            except ValueError:
+                pass
+    # Do not set validation_score to None when decision is not SUCCESS.
+    # We want to keep the score of successful runs even if there are warnings or room for improvement.
+
+
+    error_message = ""
+    if stderr:
+        error_message = f"stderr: {stderr}\n\n"
+    if error_summary:
+        error_message += f"Error summary: {error_summary}"
+
+    return {
+        "decision": decision,
+        "error_summary": error_summary,
+        "validation_score": validation_score,
+        "error_message": error_message,
+        "error_analysis": error_summary or stderr
+    }
+
+
 def build_coder_agent_graph(ctx=None, metric_logger=None):
     """
     Build and compile the Coder Agent StateGraph for synchronous execution.
@@ -361,14 +441,9 @@ Please prioritize model architecture improvements and training optimization to e
 
     @node_metrics(active_ctx, active_logger, "execute_and_evaluate")
     async def execute_and_evaluate(state: CoderAgentState) -> dict:
-        """LLM node to run the script inside sandbox synchronously and evaluate results."""
-        logger.info("─── [Coder Agent] execute_and_evaluate (SYNCHRONOUS BLOCKING) ───")
+        """LLM node to run the script inside sandbox inside the background and return acceptance status."""
+        logger.info("─── [Coder Agent] execute_and_evaluate (ASYNCHRONOUS LAUNCH) ───")
         config = state.get("config", {})
-        
-        llm_config = config.get("llm", {}).copy()
-        if "model" not in llm_config:
-            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
-        llm = _init_llm(llm_config)
         
         sandbox = state.get("sandbox_client")
         iteration = state.get("iteration", 0)
@@ -379,115 +454,33 @@ Please prioritize model architecture improvements and training optimization to e
         else:
             iter_folder = f"/home/gem/workspace/iteration_{iteration}"
 
-        # Execute command inside Sandbox - blocks until completion
+        # Execute command inside Sandbox in the background
         start_exec = time.time()
         if sandbox:
+            command = (
+                f"nohup bash -c 'echo $$BASHPID > run.pid; "
+                f"bash execution_script.sh > stdout.log 2> stderr.log; "
+                f"echo $$? > exit_code.txt' > /dev/null 2>&1 &"
+            )
             success, stdout, stderr = await _sandbox_tool_call(
                 sandbox, "sandbox_exec_shell", "execute_and_evaluate",
-                command="bash execution_script.sh",
+                command=command,
                 cwd=iter_folder,
             )
         else:
             success, stdout, stderr = False, "", "No sandbox client found in state"
 
         exec_time = time.time() - start_exec
-        logger.info(f"  Execution {'SUCCEEDED' if success else 'FAILED'} (took {exec_time:.2f}s)")
+        logger.info(f"  Background execution launch {'SUCCEEDED' if success else 'FAILED'} (took {exec_time:.2f}s)")
 
-        # Save raw outputs in the sandbox
-        if sandbox:
-            try:
-                await _sandbox_tool_call(
-                    sandbox, "sandbox_write_file", "execute_and_evaluate",
-                    path=f"{iter_folder}/stdout.txt", content=stdout,
-                )
-                await _sandbox_tool_call(
-                    sandbox, "sandbox_write_file", "execute_and_evaluate",
-                    path=f"{iter_folder}/stderr.txt", content=stderr,
-                )
-            except Exception as e:
-                logger.warning(f"Failed to write stdout/stderr logs in sandbox: {e}")
+        if not success:
+            raise RuntimeError(f"Failed to start background execution in sandbox: {stderr}")
 
-        # Truncate outputs for LLM evaluation
-        def truncate_start(text, max_len=8192):
-            if len(text) > max_len:
-                return f"[...TRUNCATED ({len(text) - max_len} chars)...]\n" + text[-max_len:]
-            return text
-
-        def _docker_translate(text: str) -> str:
-            if not text:
-                return ""
-            text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
-            text = text.replace("/workspace/data", "/home/gem/workspace/data")
-            text = text.replace("/workspace/output", "/home/gem/workspace")
-            text = text.replace("/workspace", "/home/gem/workspace")
-            text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
-            return text
-
-        prompt = EXECUTER_PROMPT.format(
-            task_description=_docker_translate(state.get("task_description", "")),
-            data_prompt=_docker_translate(state.get("data_prompt", "")),
-            python_code=state.get("python_code", ""),
-            stdout=truncate_start(stdout) or "No standard output",
-            stderr=truncate_start(stderr) or "No standard error",
-        )
-
-        response = await llm.ainvoke(prompt)
-        content = response.content
-        if active_ctx and active_logger:
-            emit_event(active_logger, {
-                **active_ctx.snapshot(),
-                "event_type": "debug",
-                "node_name": "execute_and_evaluate",
-                "iteration": state.get("iteration", 0),
-                "prompt": prompt,
-                "response": content,
-                "prompt_len": len(prompt),
-                "response_len": len(content),
-            })
-
-        # Parse evaluation decisions
-        decision = "FIX"
-        if "DECISION:" in content:
-            for line in content.split("\n"):
-                if "DECISION:" in line:
-                    if "SUCCESS" in line.upper():
-                        decision = "SUCCESS"
-                    break
-
-        error_summary = None
-        if "ERROR_SUMMARY:" in content:
-            es = content.split("ERROR_SUMMARY:")[1].strip().split("\n")[0].strip()
-            if es.lower() != "none" and es:
-                error_summary = es
-
-        validation_score = None
-        if "VALIDATION_SCORE:" in content:
-            vs_text = content.split("VALIDATION_SCORE:")[1].strip().split("\n")[0].strip()
-            if vs_text.lower() != "none" and vs_text:
-                try:
-                    validation_score = float(vs_text)
-                except ValueError:
-                    pass
-        if decision != "SUCCESS":
-            validation_score = None
-
-        error_message = ""
-        if stderr:
-            error_message = f"stderr: {stderr}\n\n"
-        if error_summary:
-            error_message += f"Error summary: {error_summary}"
-
-        logger.info(f"  Decision: {decision}")
-        logger.info(f"  Validation score: {validation_score}")
+        job_id = f"node_{node_id}" if node_id is not None else f"iteration_{iteration}"
 
         return {
-            "stdout": stdout,
-            "stderr": stderr,
-            "decision": decision,
-            "error_summary": error_summary,
-            "validation_score": validation_score,
-            "error_message": error_message,
-            "error_analysis": error_summary or stderr
+            "status": "ACCEPTED",
+            "job_id": job_id,
         }
 
     # Graph Setup
