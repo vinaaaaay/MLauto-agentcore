@@ -344,10 +344,38 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         # Step 2: Poll status loop
         poll_interval = 30  # seconds
         elapsed_time = 0
+        max_poll_time = 3720  # 1 hour + 2 minutes buffer
+
         while True:
             time.sleep(poll_interval)
             elapsed_time += poll_interval
             
+            if elapsed_time > max_poll_time:
+                error_msg = "Execution exceeded maximum time limit (1 hour)."
+                logger.error(f"Job {job_id} exceeded maximum polling time ({max_poll_time}s). Marking as FAILED.")
+                return {
+                    "coding_results": {
+                        "python_code": "",
+                        "bash_script": "",
+                        "stdout": "",
+                        "stderr": error_msg,
+                        "decision": "FIX",
+                        "error_summary": "Timeout: Code execution took longer than 1 hour.",
+                        "validation_score": None,
+                        "error_analysis": "Code execution timed out. The script took too long to train.",
+                        "error_message": error_msg
+                    },
+                    "python_code": "",
+                    "bash_script": "",
+                    "stdout": "",
+                    "stderr": error_msg,
+                    "decision": "FIX",
+                    "error_summary": "Timeout: Code execution took longer than 1 hour.",
+                    "validation_score": None,
+                    "error_analysis": "Code execution timed out. The script took too long to train.",
+                    "error_message": error_msg
+                }
+
             logger.info(f"Polling Coder Agent status (Elapsed: {elapsed_time}s)...")
             poll_payload = {
                 "action": "check_status",
