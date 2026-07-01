@@ -456,7 +456,7 @@ Please prioritize model architecture improvements and training optimization to e
         if sandbox:
             command = (
                 f"nohup bash -c 'echo $$BASHPID > run.pid; "
-                f"bash execution_script.sh > stdout.log 2> stderr.log; "
+                f"timeout 3600 bash execution_script.sh > stdout.log 2> stderr.log; "
                 f"echo $$? > exit_code.txt' > /dev/null 2>&1 &"
             )
             success, stdout, stderr = await _sandbox_tool_call(

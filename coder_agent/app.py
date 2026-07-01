@@ -147,8 +147,18 @@ def _background_poll_and_evaluate(
             "data_prompt": payload.get("data_prompt", ""),
         }
 
+        elapsed = 0
+        max_time = 3660  # 1 hour + 1 minute buffer
+
         while True:
             time.sleep(poll_interval)
+            elapsed += poll_interval
+            if elapsed > max_time:
+                logger.error(f"[BG] Sandbox polling timed out for job_id={job_id} after {elapsed}s.")
+                with _job_store_lock:
+                    _failed_jobs[job_id] = {"status": "FAILED", "error": "Sandbox execution exceeded 1-hour time limit"}
+                break
+
             logger.info(f"[BG] Polling sandbox for job_id={job_id}...")
             try:
                 result = asyncio.run(_check_coder_status(check_payload))
