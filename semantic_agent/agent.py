@@ -45,7 +45,7 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
         """Helper to initialize ChatOpenAI or ChatOpenRouter directly from config."""
         model = llm_config.get("model") or os.environ.get("LLM_MODEL", "gpt-4o")
         temperature = llm_config.get("temperature", 0.1)
-        max_tokens = llm_config.get("max_tokens", 16384)
+        max_tokens = llm_config.get("max_tokens") # None means use default API limit
 
         is_openai = model.lower().startswith("gpt") or model.lower().startswith("o1-") or model.lower().startswith("o3-")
 
@@ -60,21 +60,18 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
             is_reasoning_model = any(x in model.lower() for x in ["o1-", "o3-", "gpt-5"])
 
             if is_reasoning_model:
-                logger.info("Detected reasoning model. Forcing temp=1 and using max_completion_tokens.")
-                return ChatOpenAI(
-                    model=model,
-                    temperature=1,
-                    max_completion_tokens=max_tokens,
-                    api_key=api_key,
-                )
+                logger.info("Detected reasoning model. Forcing temp=1.")
+                kwargs = {"model": model, "temperature": 1, "api_key": api_key}
+                if max_tokens is not None:
+                    kwargs["max_completion_tokens"] = max_tokens
+                return ChatOpenAI(**kwargs)
             
             logger.info(f"Initialized OpenAI LLM: model={model}, temp={temperature}")
-            return ChatOpenAI(
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                api_key=api_key,
-            )
+            kwargs = {"model": model, "temperature": temperature, "api_key": api_key}
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            return ChatOpenAI(**kwargs)
+
         else:
             from langchain_openrouter import ChatOpenRouter
             openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")

@@ -1,7 +1,6 @@
 llm:
   model: "deepseek/deepseek-v4-flash"
-  temperature: 0.1
-  max_tokens: 16384
+  temperature: 0.0
 
 mcts:
   max_iterations: 20
@@ -17,6 +16,6 @@ mcts:
 tutorials:
   num_tutorial_retrievals: 5
   condense_tutorials: false
-  max_num_tutorials: 3
-  max_tutorial_length: 30000
+  max_num_tutorials: 5
+  max_tutorial_length: 50000
   use_tutorial_summary: true

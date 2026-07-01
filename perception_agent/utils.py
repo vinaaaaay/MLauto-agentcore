@@ -63,7 +63,7 @@ def _get_llm(config: dict = None):
 
     model = config.get("model", os.environ.get("LLM_MODEL", "gpt-4o"))
     temperature = config.get("temperature", 0.1)
-    max_tokens = config.get("max_tokens", 16384)
+    max_tokens = config.get("max_tokens") # None means use default API limit
 
     is_openai = (
         model.lower().startswith("gpt")
@@ -82,20 +82,17 @@ def _get_llm(config: dict = None):
         is_reasoning_model = any(x in model.lower() for x in ["o1-", "o3-", "gpt-5"])
 
         if is_reasoning_model:
-            logger.info("Detected reasoning model. Forcing temp=1 and using max_completion_tokens.")
-            llm = ChatOpenAI(
-                model=model,
-                temperature=1,
-                max_completion_tokens=max_tokens,
-                api_key=api_key,
-            )
+            logger.info("Detected reasoning model. Forcing temp=1.")
+            kwargs = {"model": model, "temperature": 1, "api_key": api_key}
+            if max_tokens is not None:
+                kwargs["max_completion_tokens"] = max_tokens
+            llm = ChatOpenAI(**kwargs)
         else:
-            llm = ChatOpenAI(
-                model=model,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                api_key=api_key,
-            )
+            kwargs = {"model": model, "temperature": temperature, "api_key": api_key}
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            llm = ChatOpenAI(**kwargs)
+
 
         logger.info(f"Initialized OpenAI LLM: model={model}, temp={temperature}")
         return llm
