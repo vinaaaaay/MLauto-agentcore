@@ -271,6 +271,30 @@ def call_memory_agent(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 6: call_coding_agent ───────────────────────────────────────────────
 
+def _save_node_logs(state: MLorchestratorState, results: Dict[str, Any]):
+    """Save execution logs for this specific node."""
+    output_folder = state.get("output_folder")
+    node_id = state.get("node_id")
+    if not output_folder or node_id is None:
+        return
+        
+    node_dir = os.path.join(output_folder, f"node_{node_id}")
+    os.makedirs(node_dir, exist_ok=True)
+    
+    cr = results.get("coding_results", {})
+    if cr.get("python_code"):
+        with open(os.path.join(node_dir, "generated_code.py"), "w", encoding="utf-8") as f:
+            f.write(cr["python_code"])
+    if cr.get("bash_script"):
+        with open(os.path.join(node_dir, "execution_script.sh"), "w", encoding="utf-8") as f:
+            f.write(cr["bash_script"])
+    if cr.get("stdout"):
+        with open(os.path.join(node_dir, "stdout.log"), "w", encoding="utf-8") as f:
+            f.write(cr["stdout"])
+    if cr.get("stderr"):
+        with open(os.path.join(node_dir, "stderr.log"), "w", encoding="utf-8") as f:
+            f.write(cr["stderr"])
+
 def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Calls the external Coding Agent to write, run, and evaluate ML code using polling.
@@ -344,23 +368,23 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         # Step 2: Poll status loop
         poll_interval = 30  # seconds
         elapsed_time = 0
-        max_poll_time = 3720  # 1 hour + 2 minutes buffer
+        max_poll_time = 1920  # 30 mins + 2 minutes buffer
 
         while True:
             time.sleep(poll_interval)
             elapsed_time += poll_interval
             
             if elapsed_time > max_poll_time:
-                error_msg = "Execution exceeded maximum time limit (1 hour)."
+                error_msg = "Execution exceeded maximum time limit (30 minutes)."
                 logger.error(f"Job {job_id} exceeded maximum polling time ({max_poll_time}s). Marking as FAILED.")
-                return {
+                ret = {
                     "coding_results": {
                         "python_code": "",
                         "bash_script": "",
                         "stdout": "",
                         "stderr": error_msg,
                         "decision": "FIX",
-                        "error_summary": "Timeout: Code execution took longer than 1 hour.",
+                        "error_summary": "Timeout: Code execution took longer than 30 minutes.",
                         "validation_score": None,
                         "error_analysis": "Code execution timed out. The script took too long to train.",
                         "error_message": error_msg
@@ -370,11 +394,13 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
                     "stdout": "",
                     "stderr": error_msg,
                     "decision": "FIX",
-                    "error_summary": "Timeout: Code execution took longer than 1 hour.",
+                    "error_summary": "Timeout: Code execution took longer than 30 minutes.",
                     "validation_score": None,
                     "error_analysis": "Code execution timed out. The script took too long to train.",
                     "error_message": error_msg
                 }
+                _save_node_logs(state, ret)
+                return ret
 
             logger.info(f"Polling Coder Agent status (Elapsed: {elapsed_time}s)...")
             poll_payload = {
@@ -408,7 +434,7 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
 
                 logger.info(f"Background job completed. Decision: {decision}, Score: {validation_score}")
                 
-                return {
+                ret = {
                     "coding_results": {
                         "python_code": python_code,
                         "bash_script": bash_script,
@@ -430,10 +456,12 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
                     "error_analysis": error_analysis,
                     "error_message": error_summary if error_summary else stderr
                 }
+                _save_node_logs(state, ret)
+                return ret
             elif poll_status == "FAILED":
                 error_msg = poll_result.get("error", "Unknown background execution failure")
                 logger.error(f"Background job failed: {error_msg}")
-                return {
+                ret = {
                     "coding_results": {
                         "python_code": "",
                         "bash_script": "",
@@ -455,12 +483,14 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
                     "error_analysis": error_msg,
                     "error_message": error_msg
                 }
+                _save_node_logs(state, ret)
+                return ret
             else:
                 logger.warning(f"Unknown status returned during polling: {poll_status}")
                 
     except Exception as e:
         logger.error(f"Failed during communication with Coding Agent: {e}")
-        return {
+        ret = {
             "coding_results": {
                 "python_code": "",
                 "bash_script": "",
@@ -482,6 +512,9 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
             "error_analysis": f"Orchestrator communication failure: {e}",
             "error_message": str(e)
         }
+        _save_node_logs(state, ret)
+        return ret
+
 
 # ─── Node 7: update_node ─────────────────────────────────────────────────────
 
