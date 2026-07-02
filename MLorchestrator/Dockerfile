@@ -13,6 +13,7 @@ COPY requirements.txt .
 RUN uv pip install --system --no-cache --index-strategy unsafe-best-match -r requirements.txt
 
 # Copy entrypoint and core orchestrator files
+COPY common_local ./common_local
 COPY app.py .
 COPY config.yaml .
 COPY graph.py .
@@ -21,6 +22,7 @@ COPY state.py .
 COPY a2a_client.py .
 COPY logging_config.py .
 COPY sandbox_client.py .
+COPY metrics_setup.py .
 COPY .env .
 
 # Port 8080 — AgentCore default

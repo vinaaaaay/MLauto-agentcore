@@ -21,3 +21,4 @@ numpy
 
 # Env loading 
 python-dotenv
+psutil>=5.9.0

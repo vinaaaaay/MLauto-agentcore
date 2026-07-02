@@ -62,7 +62,6 @@ def node_metrics(ctx: MetricsContext, logger: logging.Logger, node_name: str):
             @functools.wraps(func)
             async def async_wrapper(state, *args, **kwargs):
                 ctx.node_name.set(node_name)
-                ctx.custom_wait_time.set(None)  # Reset before run
                 process = psutil.Process()
                 start_mem, start_cpu, start_io = _get_process_metrics(process)
                 t0 = time.time()
@@ -70,24 +69,13 @@ def node_metrics(ctx: MetricsContext, logger: logging.Logger, node_name: str):
                 result = await func(state, *args, **kwargs)
 
                 metrics = _compute_metrics(process, t0, start_mem, start_cpu, start_io)
-                
-                custom_wait = ctx.custom_wait_time.get()
-                ctx.custom_wait_time.set(None)  # Reset after run
-                
-                if custom_wait is not None:
-                    wait_time_s = round(custom_wait, 4)
-                    active_cpu_s = round(max(0.0, metrics["e2e_s"] - custom_wait), 4)
-                else:
-                    wait_time_s = metrics["wait_time_s"]
-                    active_cpu_s = metrics["active_cpu_s"]
-
                 emit_event(logger, {
                     **ctx.snapshot(),
                     "event_type":  "psutil_metrics_node",
                     "node_name":   node_name,
                     "node_e2e_s":  metrics["e2e_s"],
-                    "active_cpu_s": active_cpu_s,
-                    "wait_time_s": wait_time_s,
+                    "active_cpu_s": metrics["active_cpu_s"],
+                    "wait_time_s": metrics["wait_time_s"],
                     "io_read_MB": metrics["io_read_MB"],
                     "io_write_MB": metrics["io_write_MB"],
                     "peak_RAM_GB": metrics["peak_RAM_GB"],
@@ -98,7 +86,6 @@ def node_metrics(ctx: MetricsContext, logger: logging.Logger, node_name: str):
             @functools.wraps(func)
             def sync_wrapper(state, *args, **kwargs):
                 ctx.node_name.set(node_name)
-                ctx.custom_wait_time.set(None)  # Reset before run
                 process = psutil.Process()
                 start_mem, start_cpu, start_io = _get_process_metrics(process)
                 t0 = time.time()
@@ -106,24 +93,13 @@ def node_metrics(ctx: MetricsContext, logger: logging.Logger, node_name: str):
                 result = func(state, *args, **kwargs)
 
                 metrics = _compute_metrics(process, t0, start_mem, start_cpu, start_io)
-                
-                custom_wait = ctx.custom_wait_time.get()
-                ctx.custom_wait_time.set(None)  # Reset after run
-                
-                if custom_wait is not None:
-                    wait_time_s = round(custom_wait, 4)
-                    active_cpu_s = round(max(0.0, metrics["e2e_s"] - custom_wait), 4)
-                else:
-                    wait_time_s = metrics["wait_time_s"]
-                    active_cpu_s = metrics["active_cpu_s"]
-
                 emit_event(logger, {
                     **ctx.snapshot(),
                     "event_type":  "psutil_metrics_node",
                     "node_name":   node_name,
                     "node_e2e_s":  metrics["e2e_s"],
-                    "active_cpu_s": active_cpu_s,
-                    "wait_time_s": wait_time_s,
+                    "active_cpu_s": metrics["active_cpu_s"],
+                    "wait_time_s": metrics["wait_time_s"],
                     "io_read_MB": metrics["io_read_MB"],
                     "io_write_MB": metrics["io_write_MB"],
                     "peak_RAM_GB": metrics["peak_RAM_GB"],

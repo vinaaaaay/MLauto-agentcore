@@ -46,6 +46,7 @@ class MetricsContext:
         self.state_id       = contextvars.ContextVar("state_id",       default="unknown")
         self.query_id       = contextvars.ContextVar("query_id",       default="unknown")
         self.node_name      = contextvars.ContextVar("node_name",      default="unknown")
+        self.custom_wait_time = contextvars.ContextVar("custom_wait_time", default=None)
         self.openai_processing_ms_ledger = {}
 
     def init_from_payload(self, payload: dict):

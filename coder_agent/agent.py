@@ -300,7 +300,10 @@ Please prioritize model architecture improvements and training optimization to e
             tutorial_prompt=tutorial_prompt or "None",
         )
 
+        t_start = time.time()
         response = await llm.ainvoke(prompt)
+        if active_ctx:
+            active_ctx.custom_wait_time.set(time.time() - t_start)
         response_text = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {
@@ -411,7 +414,10 @@ Please prioritize model architecture improvements and training optimization to e
             previous_bash_script=state.get("previous_bash_script", "") or "None",
         )
 
+        t_start = time.time()
         response = await llm.ainvoke(prompt)
+        if active_ctx:
+            active_ctx.custom_wait_time.set(time.time() - t_start)
         response_text = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {
@@ -468,6 +474,8 @@ Please prioritize model architecture improvements and training optimization to e
             success, stdout, stderr = False, "", "No sandbox client found in state"
 
         exec_time = time.time() - start_exec
+        if active_ctx:
+            active_ctx.custom_wait_time.set(exec_time)
         logger.info(f"  Background execution launch {'SUCCEEDED' if success else 'FAILED'} (took {exec_time:.2f}s)")
 
         if not success:

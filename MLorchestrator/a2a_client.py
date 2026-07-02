@@ -40,10 +40,10 @@ class A2AClient:
         logger.info(f"Invoking Bedrock AgentCore agent: {self.agent_url} (skill={skill})")
         region = os.environ.get("AWS_DEFAULT_REGION", "ap-south-1")
         
-        # Configure client with increased read timeout (e.g., 15 minutes) and no retries
+        # Configure client with increased read timeout (e.g., 30 minutes) and no retries
         # to prevent client-side timeout loops when agents take longer than 60 seconds.
         config = Config(
-            read_timeout=900,
+            read_timeout=1800,
             connect_timeout=60,
             retries={'max_attempts': 1}
         )

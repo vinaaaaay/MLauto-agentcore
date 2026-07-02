@@ -14,6 +14,18 @@ from tree_store import TreeStore
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("mcts_handler.app")
 
+metric_logger = logging.getLogger("agent_metrics")
+metric_logger.setLevel(logging.INFO)
+if not metric_logger.handlers:
+    _h = logging.StreamHandler(sys.stdout)
+    _h.setFormatter(logging.Formatter("%(message)s"))
+    metric_logger.addHandler(_h)
+
+from common_local.metrics_context import MetricsContext
+from common_local.metrics_emitter import emit_event, graph_metrics
+
+ctx = MetricsContext(agent_id="mcts_handler")
+
 app = BedrockAgentCoreApp()
 
 _s3_client_cache = None
@@ -86,6 +98,7 @@ def _make_lightweight_tree(tree):
     return tree
 
 @app.entrypoint
+@graph_metrics(ctx=ctx, logger=metric_logger, graph_name="mcts_handler")
 def handle(payload: dict) -> dict:
     """
     AgentCore entrypoint for MCTS Handler.

@@ -21,6 +21,7 @@ RUN uv pip install --system --no-cache --index-strategy unsafe-best-match -r req
 # Copy MCP server application code
 COPY mcp_server.py .
 COPY app.py .
+COPY common_local ./common_local
 
 # Port 8080 — AgentCore default for agent runtimes
 EXPOSE 8080

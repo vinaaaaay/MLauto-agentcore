@@ -17,6 +17,7 @@ COPY app.py .
 COPY node_state.py .
 COPY tree_store.py .
 COPY .env .
+COPY common_local ./common_local
 
 # Port 8080 — AgentCore default
 EXPOSE 8080

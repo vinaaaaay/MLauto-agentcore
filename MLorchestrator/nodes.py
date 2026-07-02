@@ -7,6 +7,8 @@ from typing import Dict, Any, List, Optional
 from a2a_client import A2AClient
 from state import MLorchestratorState
 from logging_config import A2ACallLogger
+from metrics_setup import ctx, metric_logger
+from common_local.metrics_emitter import node_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +19,7 @@ def _get_call_logger(state: MLorchestratorState) -> A2ACallLogger:
 
 # ─── Node 1: call_perception_agent ──────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "call_perception_agent")
 def call_perception_agent(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Calls the external Perception Agent to analyze the input task.
@@ -39,7 +42,9 @@ def call_perception_agent(state: MLorchestratorState) -> Dict[str, Any]:
         "config": config,
     }
 
+    t_start = time.time()
     result = client.send_task_sync("analyze_task", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
 
     data_prompt = result.get("data_prompt", "")
     task_description = result.get("task_description", "")
@@ -72,6 +77,7 @@ def call_perception_agent(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 2: init_mcts ───────────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "init_mcts")
 def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Initializes the MCTS tree via mcts_handler Bedrock Agent.
@@ -109,7 +115,9 @@ def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
             "current_tool": state.get("current_tool", "")
         }
 
+    t_start = time.time()
     res = client.send_task_sync("init", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
 
     return {
         "mcts_tree": res,
@@ -124,6 +132,7 @@ def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 3: select_node ─────────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "select_node")
 def select_node(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Traverses the MCTS tree via mcts_handler Bedrock Agent to select a leaf node.
@@ -145,7 +154,9 @@ def select_node(state: MLorchestratorState) -> Dict[str, Any]:
         "mcts_tree": state.get("mcts_tree")
     }
 
+    t_start = time.time()
     res = client.send_task_sync("select", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
 
     node_id = res.get("node_id")
     is_complete = res.get("is_complete", False)
@@ -176,6 +187,7 @@ def select_node(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 4: expand_node ─────────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "expand_node")
 def expand_node(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Creates a new child node in the MCTS tree via mcts_handler Bedrock Agent.
@@ -200,7 +212,9 @@ def expand_node(state: MLorchestratorState) -> Dict[str, Any]:
         "current_selection": state.get("current_selection")
     }
 
+    t_start = time.time()
     res = client.send_task_sync("expand", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
     mcts_tree = res.get("mcts_tree", {})
     current_selection = res.get("current_selection", {})
 
@@ -220,6 +234,7 @@ def expand_node(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 5: call_memory_agent ───────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "call_memory_agent")
 def call_memory_agent(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Calls the external Memory Agent to retrieve relevant tutorials/guidelines.
@@ -255,7 +270,9 @@ def call_memory_agent(state: MLorchestratorState) -> Dict[str, Any]:
     }
 
     try:
+        t_start = time.time()
         result = client.send_task_sync("retrieve_tutorials", payload)
+        ctx.custom_wait_time.set(time.time() - t_start)
         tutorial_prompt = result.get("tutorial_prompt", "")
         logger.info(f"Memory Agent retrieved tutorials successfully ({len(tutorial_prompt)} chars)")
         return {
@@ -295,6 +312,7 @@ def _save_node_logs(state: MLorchestratorState, results: Dict[str, Any]):
         with open(os.path.join(node_dir, "stderr.log"), "w", encoding="utf-8") as f:
             f.write(cr["stderr"])
 
+@node_metrics(ctx, metric_logger, "call_coding_agent")
 def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Calls the external Coding Agent to write, run, and evaluate ML code using polling.
@@ -352,10 +370,14 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         "previous_bash_script": parent_bash,
     }
 
+    trigger_wait = 0.0
+    t_start_loop = None
     try:
         # Step 1: Initiate code generation and execution launch
         logger.info("Requesting Coder Agent to initiate asynchronous training task...")
+        t_start_trigger = time.time()
         result = client.send_task_sync("generate_and_run", payload, session_id=coder_session_id)
+        trigger_wait = time.time() - t_start_trigger
         
         status = result.get("status")
         if status != "ACCEPTED":
@@ -370,6 +392,7 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         elapsed_time = 0
         max_poll_time = 1920  # 30 mins + 2 minutes buffer
 
+        t_start_loop = time.time()
         while True:
             time.sleep(poll_interval)
             elapsed_time += poll_interval
@@ -514,10 +537,14 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         }
         _save_node_logs(state, ret)
         return ret
+    finally:
+        loop_duration = (time.time() - t_start_loop) if t_start_loop is not None else 0.0
+        ctx.custom_wait_time.set(trigger_wait + loop_duration)
 
 
 # ─── Node 7: update_node ─────────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "update_node")
 def update_node(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Parses execution results from Coding Agent and updates tree via mcts_handler Bedrock Agent.
@@ -556,7 +583,9 @@ def update_node(state: MLorchestratorState) -> Dict[str, Any]:
         "coding_results": coding_results
     }
 
+    t_start = time.time()
     res = client.send_task_sync("update", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
     mcts_tree = res.get("mcts_tree", {})
     current_selection = res.get("current_selection", {})
 
@@ -578,6 +607,7 @@ def update_node(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 8: backpropagate ───────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "backpropagate")
 def backpropagate(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Backpropagates statistics up the MCTS tree via mcts_handler Bedrock Agent.
@@ -602,7 +632,9 @@ def backpropagate(state: MLorchestratorState) -> Dict[str, Any]:
         "current_selection": state.get("current_selection")
     }
 
+    t_start = time.time()
     res = client.send_task_sync("backpropagate", payload)
+    ctx.custom_wait_time.set(time.time() - t_start)
     mcts_tree = res
     iteration = mcts_tree.get("iteration", 0)
 
@@ -613,6 +645,7 @@ def backpropagate(state: MLorchestratorState) -> Dict[str, Any]:
 
 # ─── Node 9: finalize_results ────────────────────────────────────────────────
 
+@node_metrics(ctx, metric_logger, "finalize_results")
 def finalize_results(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Saves MCTS final logs, tree visualizations, and finalizes run folders.
@@ -638,7 +671,9 @@ def finalize_results(state: MLorchestratorState) -> Dict[str, Any]:
 
     tree_viz = ""
     try:
+        t_start = time.time()
         res = client.send_task_sync("finalize", payload)
+        ctx.custom_wait_time.set(time.time() - t_start)
         tree_viz = res.get("tree_visualization", "")
         status = res.get("status", {})
 
@@ -737,6 +772,7 @@ def _create_sandbox_client(sandbox_url: str, read_timeout: int = 900, max_retrie
     return sandbox
 
 
+@node_metrics(ctx, metric_logger, "sync_s3_to_sandbox")
 def sync_s3_to_sandbox(state: MLorchestratorState) -> Dict[str, Any]:
     """
     Syncs the S3 input_data_folder into the sandbox if it is an S3 URI.

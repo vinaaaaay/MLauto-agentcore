@@ -50,11 +50,25 @@ from mcp_server import retrieve_tutorials  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("mcp_agentcore")
 
+# Structured metrics logger
+metric_logger = logging.getLogger("agent_metrics")
+metric_logger.setLevel(logging.INFO)
+if not metric_logger.handlers:
+    _h = logging.StreamHandler(sys.stdout)
+    _h.setFormatter(logging.Formatter("%(message)s"))
+    metric_logger.addHandler(_h)
+
+from common_local.metrics_context import MetricsContext
+from common_local.metrics_emitter import emit_event, graph_metrics
+
+ctx = MetricsContext(agent_id="mcpserver")
+
 # ─── AgentCore App ────────────────────────────────────────────────────────────
 app = BedrockAgentCoreApp()
 
 
 @app.entrypoint
+@graph_metrics(ctx=ctx, logger=metric_logger, graph_name="mcpserver")
 def handle(payload: dict) -> dict:
     """
     AgentCore entrypoint — receives a JSON payload and returns retrieval results.
@@ -99,6 +113,13 @@ def handle(payload: dict) -> dict:
             "tool_name": tool_name,
         }
         logger.error(f"[handle] exception: {json.dumps(error_info)}")
+        emit_event(metric_logger, {
+            **ctx.snapshot(),
+            "event_type": "invocation",
+            "status": "FAILED",
+            "error_type": type(exc).__name__,
+            "error_message": str(exc)
+        })
         raise
 
 

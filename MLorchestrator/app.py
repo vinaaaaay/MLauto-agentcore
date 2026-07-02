@@ -30,6 +30,10 @@ from logging_config import configure_logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("mlorchestrator.app")
 
+from metrics_setup import ctx, metric_logger
+from common_local.metrics_emitter import emit_event, graph_metrics
+from common_local.logging_callback import SessionMetricsCallback
+
 # ─── Config Loading Helpers ────────────────────────────────────────────────────
 def deep_merge(dict1: Dict[str, Any], dict2: Dict[str, Any]) -> Dict[str, Any]:
     """Recursively merges dict2 into dict1."""
@@ -87,12 +91,44 @@ def _background_mcts_thread(
     and keeps the AgentCore container alive by holding the async task.
     """
     logger.info(f"[BG] Background MCTS run {run_id} started.")
+    import psutil
+    process = psutil.Process()
+    start_cpu = process.cpu_times()
+    try:
+        start_io = process.io_counters()
+    except Exception:
+        start_io = None
     start_time = time.time()
     try:
         # Build LangGraph and execute search loop
         graph = build_orchestrator_graph()
         result = graph.invoke(initial_state)
         elapsed = time.time() - start_time
+        
+        end_cpu = process.cpu_times()
+        active_cpu_s = (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
+        wait_time_s = max(0, elapsed - active_cpu_s)
+
+        io_read_mb = 0.0
+        io_write_mb = 0.0
+        if start_io:
+            try:
+                end_io = process.io_counters()
+                io_read_mb = (end_io.read_bytes - start_io.read_bytes) / (1024 * 1024)
+                io_write_mb = (end_io.write_bytes - start_io.write_bytes) / (1024 * 1024)
+            except Exception:
+                pass
+
+        emit_event(metric_logger, {
+            **ctx.snapshot(),
+            "event_type": "psutil_metrics_graph",
+            "graph_name": "mlorchestrator_bg",
+            "graph_e2e_s": round(elapsed, 4),
+            "active_cpu_s": round(active_cpu_s, 4),
+            "wait_time_s": round(wait_time_s, 4),
+            "io_read_MB": round(io_read_mb, 4),
+            "io_write_MB": round(io_write_mb, 4),
+        })
 
         # Extract values for completion dictionary
         mcts_tree = result.get("mcts_tree", {})
@@ -162,6 +198,7 @@ def _background_mcts_thread(
 
 
 @app.entrypoint
+@graph_metrics(ctx=ctx, logger=metric_logger, graph_name="mlorchestrator")
 def handle(payload: dict) -> dict:
     """
     AgentCore entrypoint for MLorchestrator.
