@@ -145,6 +145,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
             raise
         finally:
             latency = (time.time() - t0) * 1000
+            logger.info(f"[{node_name}] Tool {tool_name} E2E Latency: {latency/1000:.2f}s")
             event = {
                 "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d__%H-%M-%S.%f"),
                 "event_type": "tool_call",
@@ -182,6 +183,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
         t0 = time.time()
         response = llm.invoke(prompt)
         elapsed = time.time() - t0
+        logger.info(f"[{node_name}] LLM Latency: {elapsed:.2f}s")
         response_text = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {
@@ -311,6 +313,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
         t0 = time.time()
         response = llm.invoke(prompt)
         elapsed = time.time() - t0
+        logger.info(f"[find_description_files] LLM Latency: {elapsed:.2f}s")
         content = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {
@@ -388,6 +391,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
         t0 = time.time()
         response = llm.invoke(prompt)
         elapsed = time.time() - t0
+        logger.info(f"[generate_task_description] LLM Latency: {elapsed:.2f}s")
         response_text = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {
@@ -433,6 +437,7 @@ def build_perception_agent_graph(ctx=None, metric_logger=None):
         t0 = time.time()
         response = llm.invoke(prompt)
         elapsed = time.time() - t0
+        logger.info(f"[select_tools] LLM Latency: {elapsed:.2f}s")
         content = response.content
         if active_ctx and active_logger:
             emit_event(active_logger, {

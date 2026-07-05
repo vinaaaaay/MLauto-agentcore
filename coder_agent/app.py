@@ -58,7 +58,7 @@ async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> 
     # Build initial state from payload
     config = {
         "llm": {
-            "model": os.environ.get("LLM_MODEL", "gpt-4o"),
+            "model": "gpt-4o",
             "temperature": 0.1,
         },
         "mcts": {

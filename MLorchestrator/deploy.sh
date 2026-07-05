@@ -102,7 +102,10 @@ agentcore deploy $DEPLOY_FLAGS "$@" \
     --env SANDBOX_URL="${SANDBOX_URL:-lambda:fame-sandbox-bastion}" \
     --env GATEWAY_LAMBDA_NAME="${GATEWAY_LAMBDA_NAME:-fame-sandbox-bastion}" \
     --env TARGET_IP="${TARGET_IP:-172.31.41.84}" \
-    --env TARGET_PORT="${TARGET_PORT:-8080}"
+    --env TARGET_PORT="${TARGET_PORT:-8080}" \
+    --env SANDBOX_TIMEOUT="${SANDBOX_TIMEOUT:-1800}" \
+    --env SANDBOX_MCP_AUTH_KEY="${SANDBOX_MCP_AUTH_KEY:-}" \
+    --env SANDBOX_RESET_URL="${SANDBOX_RESET_URL:-}"
 
 
 echo ""

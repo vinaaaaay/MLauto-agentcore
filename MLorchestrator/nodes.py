@@ -44,7 +44,9 @@ def call_perception_agent(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     result = client.send_task_sync("analyze_task", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    logger.info(f"[Perception E2E Time] {elapsed:.2f}s")
 
     data_prompt = result.get("data_prompt", "")
     task_description = result.get("task_description", "")
@@ -117,7 +119,13 @@ def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     res = client.send_task_sync("init", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    
+    if res.get("status") == "FAILED":
+        raise RuntimeError(f"mcts_handler init failed: {res.get('error')}")
+        
+    res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
 
     return {
         "mcts_tree": res,
@@ -156,7 +164,14 @@ def select_node(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     res = client.send_task_sync("select", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    
+    if res.get("status") == "FAILED":
+        raise RuntimeError(f"mcts_handler select failed: {res.get('error')}")
+        
+    res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
+    logger.info(f"[MCTS Selection E2E Time] {elapsed:.2f}s")
 
     node_id = res.get("node_id")
     is_complete = res.get("is_complete", False)
@@ -178,6 +193,7 @@ def select_node(state: MLorchestratorState) -> Dict[str, Any]:
 
     return {
         "current_selection": current_selection,
+        "mcts_tree": state.get("mcts_tree"),
         "node_id": node_id,
         "stage": res.get("stage"),
         "depth": res.get("depth"),
@@ -214,8 +230,16 @@ def expand_node(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     res = client.send_task_sync("expand", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
-    mcts_tree = res.get("mcts_tree", {})
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    
+    if res.get("status") == "FAILED":
+        raise RuntimeError(f"mcts_handler expand failed: {res.get('error')}")
+        
+    res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
+    logger.info(f"[MCTS Expansion E2E Time] {elapsed:.2f}s")
+    
+    mcts_tree = res.get("mcts_tree")
     current_selection = res.get("current_selection", {})
 
     logger.info(
@@ -272,7 +296,9 @@ def call_memory_agent(state: MLorchestratorState) -> Dict[str, Any]:
     try:
         t_start = time.time()
         result = client.send_task_sync("retrieve_tutorials", payload)
-        ctx.custom_wait_time.set(time.time() - t_start)
+        elapsed = time.time() - t_start
+        ctx.custom_wait_time.set(elapsed)
+        logger.info(f"[Semantic E2E Time] {elapsed:.2f}s")
         tutorial_prompt = result.get("tutorial_prompt", "")
         logger.info(f"Memory Agent retrieved tutorials successfully ({len(tutorial_prompt)} chars)")
         return {
@@ -331,10 +357,6 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
     client = A2AClient(coding_url, agent_name="CodingAgent")
     client.call_logger = _get_call_logger(state)
 
-    # Generate a session ID to pin all calls (generate_and_run + all check_status
-    # polls) to the same warm coder agent container. This avoids cold starts on
-    # every poll and routes each call directly to the session where the background
-    # polling thread is running.
     coder_session_id = str(uuid.uuid4())
     logger.info(f"Coder agent session_id for this node: {coder_session_id}")
 
@@ -373,7 +395,6 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
     trigger_wait = 0.0
     t_start_loop = None
     try:
-        # Step 1: Initiate code generation and execution launch
         logger.info("Requesting Coder Agent to initiate asynchronous training task...")
         t_start_trigger = time.time()
         result = client.send_task_sync("generate_and_run", payload, session_id=coder_session_id)
@@ -387,10 +408,15 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         job_id = result.get("job_id")
         logger.info(f"Task accepted by Coder Agent. Job ID: {job_id}. Starting status polling...")
         
-        # Step 2: Poll status loop
+        env_timeout = os.environ.get("SANDBOX_TIMEOUT")
+        try:
+            default_timeout = int(env_timeout) if env_timeout else 1800
+        except ValueError:
+            default_timeout = 1800
+        training_timeout = config.get("mcts", {}).get("training_timeout") or config.get("training_timeout") or config.get("timeout") or default_timeout
         poll_interval = 30  # seconds
         elapsed_time = 0
-        max_poll_time = 1920  # 30 mins + 2 minutes buffer
+        max_poll_time = int(training_timeout) + 120
 
         t_start_loop = time.time()
         while True:
@@ -398,7 +424,7 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
             elapsed_time += poll_interval
             
             if elapsed_time > max_poll_time:
-                error_msg = "Execution exceeded maximum time limit (30 minutes)."
+                error_msg = f"Execution exceeded maximum time limit ({max_poll_time // 60} minutes)."
                 logger.error(f"Job {job_id} exceeded maximum polling time ({max_poll_time}s). Marking as FAILED.")
                 ret = {
                     "coding_results": {
@@ -407,7 +433,7 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
                         "stdout": "",
                         "stderr": error_msg,
                         "decision": "FIX",
-                        "error_summary": "Timeout: Code execution took longer than 30 minutes.",
+                        "error_summary": f"Timeout: Code execution took longer than {max_poll_time // 60} minutes.",
                         "validation_score": None,
                         "error_analysis": "Code execution timed out. The script took too long to train.",
                         "error_message": error_msg
@@ -539,7 +565,9 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
         return ret
     finally:
         loop_duration = (time.time() - t_start_loop) if t_start_loop is not None else 0.0
-        ctx.custom_wait_time.set(trigger_wait + loop_duration)
+        total_coder_time = trigger_wait + loop_duration
+        ctx.custom_wait_time.set(total_coder_time)
+        logger.info(f"[Coder E2E Time] {total_coder_time:.2f}s")
 
 
 # ─── Node 7: update_node ─────────────────────────────────────────────────────
@@ -585,8 +613,16 @@ def update_node(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     res = client.send_task_sync("update", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
-    mcts_tree = res.get("mcts_tree", {})
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    
+    if res.get("status") == "FAILED":
+        raise RuntimeError(f"mcts_handler update failed: {res.get('error')}")
+        
+    res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
+    logger.info(f"[MCTS Update E2E Time] {elapsed:.2f}s")
+    
+    mcts_tree = res.get("mcts_tree")
     current_selection = res.get("current_selection", {})
 
     best_score = mcts_tree.get("best_score")
@@ -634,7 +670,15 @@ def backpropagate(state: MLorchestratorState) -> Dict[str, Any]:
 
     t_start = time.time()
     res = client.send_task_sync("backpropagate", payload)
-    ctx.custom_wait_time.set(time.time() - t_start)
+    elapsed = time.time() - t_start
+    ctx.custom_wait_time.set(elapsed)
+    
+    if res.get("status") == "FAILED":
+        raise RuntimeError(f"mcts_handler backpropagate failed: {res.get('error')}")
+        
+    res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
+    logger.info(f"[MCTS Backprop E2E Time] {elapsed:.2f}s")
+    
     mcts_tree = res
     iteration = mcts_tree.get("iteration", 0)
 
@@ -673,7 +717,10 @@ def finalize_results(state: MLorchestratorState) -> Dict[str, Any]:
     try:
         t_start = time.time()
         res = client.send_task_sync("finalize", payload)
-        ctx.custom_wait_time.set(time.time() - t_start)
+        elapsed = time.time() - t_start
+        ctx.custom_wait_time.set(elapsed)
+        res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
+        logger.info(f"[MCTS Handler Total E2E Time] {res['mcts_e2e_time']:.2f}s")
         tree_viz = res.get("tree_visualization", "")
         status = res.get("status", {})
 
@@ -845,12 +892,15 @@ def sync_s3_to_sandbox(state: MLorchestratorState) -> Dict[str, Any]:
             try:
                 # Use 900s timeout for the actual sync (large datasets take time)
                 sync_sandbox = _create_sandbox_client(sandbox_url, read_timeout=900, max_retries=0)
+                t_sync = time.time()
                 success, stdout, stderr = sync_sandbox.exec_shell_sync(
                     command=sync_command,
                     cwd="/home/gem/workspace"
                 )
+                elapsed_sync = time.time() - t_sync
                 if success:
                     logger.info(f"Successfully synced S3 to sandbox at '{sandbox_sync_dir}'")
+                    logger.info(f"[S3 Sync Time] {elapsed_sync:.2f}s")
                     last_error = None
                     break
                 else:

@@ -199,31 +199,56 @@ class SessionMetricsCallback(BaseCallbackHandler):
         output_bytes = 0
 
         # ── Extract token counts from response ──
+        # Extract from llm_output if present
         if response.llm_output and "token_usage" in response.llm_output:
             usage = response.llm_output["token_usage"]
             input_tokens = usage.get("prompt_tokens", 0)
             output_tokens = usage.get("completion_tokens", 0)
-            cached_tokens = usage.get("cached_tokens", 0)
-            # Reasoning tokens from OpenAI format
+            cached_tokens = usage.get("cached_tokens") or usage.get("cache_read_input_tokens") or usage.get("cache_read") or 0
+            
             details = usage.get("completion_tokens_details") or {}
             if isinstance(details, dict):
                 reasoning_tokens = details.get("reasoning_tokens", 0) or details.get("reasoning", 0)
                 
-            # OpenAI returns cached tokens in prompt_tokens_details
             prompt_details = usage.get("prompt_tokens_details") or {}
             if isinstance(prompt_details, dict):
-                cached_tokens = cached_tokens or prompt_details.get("cached_tokens", 0)
-        elif response.generations and hasattr(response.generations[0][0], "message"):
+                cached_tokens = cached_tokens or prompt_details.get("cached_tokens", 0) or prompt_details.get("cache_read", 0)
+
+        # Also try to extract from generations/message to get more details or as a fallback
+        if response.generations and hasattr(response.generations[0][0], "message"):
             msg = response.generations[0][0].message
+            
+            # Check usage_metadata (standard LangChain structure)
             if hasattr(msg, "usage_metadata") and msg.usage_metadata:
                 um = msg.usage_metadata
-                input_tokens = um.get("input_tokens", 0)
-                output_tokens = um.get("output_tokens", 0)
-                # Anthropic / other providers
-                cached_tokens = um.get("cache_read_input_tokens", 0)
-                # Reasoning/Thought tokens
+                input_tokens = input_tokens or um.get("input_tokens", 0)
+                output_tokens = output_tokens or um.get("output_tokens", 0)
+                cached_tokens = cached_tokens or um.get("cache_read_input_tokens") or um.get("cached_tokens") or 0
+                
+                input_details = um.get("input_token_details", {})
+                if isinstance(input_details, dict):
+                    cached_tokens = cached_tokens or input_details.get("cache_read", 0) or input_details.get("cached_tokens", 0)
+                    
                 output_details = um.get("output_token_details", {})
-                reasoning_tokens = output_details.get("reasoning", 0)
+                if isinstance(output_details, dict):
+                    reasoning_tokens = reasoning_tokens or output_details.get("reasoning", 0) or output_details.get("reasoning_tokens", 0)
+
+            # Check response_metadata (raw API response structure)
+            if hasattr(msg, "response_metadata") and msg.response_metadata:
+                meta = msg.response_metadata
+                usage_meta = meta.get("token_usage") or meta.get("usage")
+                if isinstance(usage_meta, dict):
+                    input_tokens = input_tokens or usage_meta.get("prompt_tokens", 0)
+                    output_tokens = output_tokens or usage_meta.get("completion_tokens", 0)
+                    cached_tokens = cached_tokens or usage_meta.get("cached_tokens") or usage_meta.get("cache_read_input_tokens") or usage_meta.get("cache_read") or 0
+                    
+                    p_details = usage_meta.get("prompt_tokens_details")
+                    if isinstance(p_details, dict):
+                        cached_tokens = cached_tokens or p_details.get("cached_tokens", 0) or p_details.get("cache_read", 0)
+                        
+                    o_details = usage_meta.get("completion_tokens_details")
+                    if isinstance(o_details, dict):
+                        reasoning_tokens = reasoning_tokens or o_details.get("reasoning_tokens", 0) or o_details.get("reasoning", 0)
 
         # ── Extract OpenAI processing time ──
         # Strategy:

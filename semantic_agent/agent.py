@@ -43,7 +43,7 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
     
     def _init_llm(llm_config: dict):
         """Helper to initialize ChatOpenAI or ChatOpenRouter directly from config."""
-        model = llm_config.get("model") or os.environ.get("LLM_MODEL", "gpt-4o")
+        model = llm_config.get("model", "gpt-4o")
         temperature = llm_config.get("temperature", 0.1)
         max_tokens = llm_config.get("max_tokens") # None means use default API limit
 
@@ -61,31 +61,36 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
 
             if is_reasoning_model:
                 logger.info("Detected reasoning model. Forcing temp=1.")
-                kwargs = {"model": model, "temperature": 1, "api_key": api_key}
+                kwargs = {"model": model, "temperature": 1, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
                 if max_tokens is not None:
                     kwargs["max_completion_tokens"] = max_tokens
                 return ChatOpenAI(**kwargs)
             
             logger.info(f"Initialized OpenAI LLM: model={model}, temp={temperature}")
-            kwargs = {"model": model, "temperature": temperature, "api_key": api_key}
+            kwargs = {"model": model, "temperature": temperature, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
             if max_tokens is not None:
                 kwargs["max_tokens"] = max_tokens
             return ChatOpenAI(**kwargs)
 
         else:
-            from langchain_openrouter import ChatOpenRouter
             openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
             if not openrouter_api_key:
                 raise EnvironmentError(
                     "OPENROUTER_API_KEY environment variable is not set."
                 )
             
-            logger.info(f"Initialized OpenRouter LLM: model={model}, temp={temperature}")
-            return ChatOpenRouter(
-                model=model,
-                temperature=temperature,
-                api_key=openrouter_api_key,
-            )
+            logger.info(f"Initialized OpenRouter via ChatOpenAI: model={model}, temp={temperature}")
+            kwargs = {
+                "model": model,
+                "temperature": temperature,
+                "api_key": openrouter_api_key,
+                "base_url": "https://openrouter.ai/api/v1",
+                "max_retries": 1,
+                "timeout": 60.0
+            }
+            if max_tokens is not None:
+                kwargs["max_tokens"] = max_tokens
+            return ChatOpenAI(**kwargs)
 
     async def _mcp_tool_call(server_url: str, query: str, tool_name: str, top_k: int, condensed: bool, callbacks: list) -> List[Dict[str, Any]]:
         """
@@ -159,7 +164,7 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
         
         # Default to 'gpt-4o-mini' if not specified
         if "model" not in llm_config:
-            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+            llm_config["model"] = "gpt-4o-mini"
 
         try:
             llm = _init_llm(llm_config)
@@ -344,7 +349,7 @@ def build_semantic_agent_graph(ctx=None, metric_logger=None):
             # LLM setup — SessionMetricsCallback (passed via LangGraph config) auto-captures the llm_call event
             llm_config = agent_config.get("llm", {}).copy()
             if "model" not in llm_config:
-                llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o-mini")
+                llm_config["model"] = "gpt-4o-mini"
             llm = _init_llm(llm_config)
 
             response = llm.invoke(prompt)

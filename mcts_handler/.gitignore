@@ -1,2 +1,3 @@
 test_mcts.py
+test_mcts_deployed_harsh.py
 .bedrock_*

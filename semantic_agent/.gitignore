@@ -1,3 +1,5 @@
 .bedrock_*
 test_mcp.py
 test_semantic.py
+test_results.json
+test_semantic_deployed.py

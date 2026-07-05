@@ -73,6 +73,7 @@ app = BedrockAgentCoreApp()
 # In-memory stores for background run executions
 _completed_runs: Dict[str, Dict[str, Any]] = {}
 _failed_runs: Dict[str, Dict[str, Any]] = {}
+_active_runs: set = set()
 _runs_lock = threading.Lock()
 
 # ─── Background Thread Execution Loop ───────────────────────────────────────────
@@ -91,13 +92,7 @@ def _background_mcts_thread(
     and keeps the AgentCore container alive by holding the async task.
     """
     logger.info(f"[BG] Background MCTS run {run_id} started.")
-    import psutil
-    process = psutil.Process()
-    start_cpu = process.cpu_times()
-    try:
-        start_io = process.io_counters()
-    except Exception:
-        start_io = None
+    import resource
     start_time = time.time()
     try:
         # Build LangGraph and execute search loop
@@ -105,30 +100,9 @@ def _background_mcts_thread(
         result = graph.invoke(initial_state)
         elapsed = time.time() - start_time
         
-        end_cpu = process.cpu_times()
-        active_cpu_s = (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
-        wait_time_s = max(0, elapsed - active_cpu_s)
-
-        io_read_mb = 0.0
-        io_write_mb = 0.0
-        if start_io:
-            try:
-                end_io = process.io_counters()
-                io_read_mb = (end_io.read_bytes - start_io.read_bytes) / (1024 * 1024)
-                io_write_mb = (end_io.write_bytes - start_io.write_bytes) / (1024 * 1024)
-            except Exception:
-                pass
-
-        emit_event(metric_logger, {
-            **ctx.snapshot(),
-            "event_type": "psutil_metrics_graph",
-            "graph_name": "mlorchestrator_bg",
-            "graph_e2e_s": round(elapsed, 4),
-            "active_cpu_s": round(active_cpu_s, 4),
-            "wait_time_s": round(wait_time_s, 4),
-            "io_read_MB": round(io_read_mb, 4),
-            "io_write_MB": round(io_write_mb, 4),
-        })
+        peak_ram_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+        
+        logger.info(f"[Orchestrator E2E] Total time: {elapsed:.2f}s | Peak RAM: {peak_ram_mb:.2f} MB")
 
         # Extract values for completion dictionary
         mcts_tree = result.get("mcts_tree", {})
@@ -183,6 +157,7 @@ def _background_mcts_thread(
         logger.info(f"[BG] Background MCTS run {run_id} finished successfully. Best Score: {best_score}")
         with _runs_lock:
             _completed_runs[run_id] = completed_result
+            _active_runs.discard(run_id)
 
     except Exception as exc:
         logger.error(f"[BG] Background MCTS run {run_id} failed: {exc}", exc_info=True)
@@ -191,6 +166,7 @@ def _background_mcts_thread(
                 "status": "FAILED",
                 "error": str(exc),
             }
+            _active_runs.discard(run_id)
     finally:
         # Revert container status to HEALTHY so it can idle out eventually
         app.complete_async_task(task_id)
@@ -209,7 +185,7 @@ def handle(payload: dict) -> dict:
     """
     action = payload.get("action", "start_run")
     logger.info(f"Orchestrator Agent Invoked: action={action}")
-
+    
     if action == "start_run":
         run_id = str(uuid.uuid4())[:8]
         input_data_folder = payload.get("input_data_folder")
@@ -295,6 +271,8 @@ def handle(payload: dict) -> dict:
 
         # Register async task so container reports HealthyBusy
         task_id = app.add_async_task("mcts_run", metadata={"run_id": run_id})
+        with _runs_lock:
+            _active_runs.add(run_id)
         logger.info(f"Registered async task_id={task_id} for run_id={run_id}.")
 
         # Spawn background execution thread
@@ -332,8 +310,11 @@ def handle(payload: dict) -> dict:
             elif run_id in _failed_runs:
                 logger.info(f"check_status: run_id={run_id} failed. Returning error.")
                 return _failed_runs.pop(run_id)
-            else:
+            elif run_id in _active_runs:
                 return {"status": "RUNNING"}
+            else:
+                logger.error(f"check_status: run_id={run_id} UNKNOWN (Container restarted or job lost).")
+                return {"status": "FAILED", "error": "Run not found. The orchestrator container may have restarted and lost in-memory state."}
 
     else:
         raise ValueError(f"Unknown action: {action}")

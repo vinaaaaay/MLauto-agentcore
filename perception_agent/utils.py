@@ -61,7 +61,7 @@ def _get_llm(config: dict = None):
     """
     config = config or {}
 
-    model = config.get("model", os.environ.get("LLM_MODEL", "gpt-4o"))
+    model = config.get("model", "gpt-4o-mini")
     temperature = config.get("temperature", 0.1)
     max_tokens = config.get("max_tokens") # None means use default API limit
 
@@ -83,12 +83,12 @@ def _get_llm(config: dict = None):
 
         if is_reasoning_model:
             logger.info("Detected reasoning model. Forcing temp=1.")
-            kwargs = {"model": model, "temperature": 1, "api_key": api_key}
+            kwargs = {"model": model, "temperature": 1, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
             if max_tokens is not None:
                 kwargs["max_completion_tokens"] = max_tokens
             llm = ChatOpenAI(**kwargs)
         else:
-            kwargs = {"model": model, "temperature": temperature, "api_key": api_key}
+            kwargs = {"model": model, "temperature": temperature, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
             if max_tokens is not None:
                 kwargs["max_tokens"] = max_tokens
             llm = ChatOpenAI(**kwargs)
@@ -98,18 +98,24 @@ def _get_llm(config: dict = None):
         return llm
 
     else:
-        from langchain_openrouter import ChatOpenRouter
+        from langchain_openai import ChatOpenAI
         openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
         if not openrouter_api_key:
             raise EnvironmentError(
                 "OPENROUTER_API_KEY environment variable is not set."
             )
-        logger.info(f"Initialized OpenRouter LLM: model={model}, temp={temperature}")
-        return ChatOpenRouter(
-            model=model,
-            temperature=temperature,
-            api_key=openrouter_api_key,
-        )
+        logger.info(f"Initialized OpenRouter via ChatOpenAI: model={model}, temp={temperature}")
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "api_key": openrouter_api_key,
+            "base_url": "https://openrouter.ai/api/v1",
+            "max_retries": 1,
+            "timeout": 60.0,
+        }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        return ChatOpenAI(**kwargs)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -319,11 +325,11 @@ def _execute_code_sandbox(
 
     if language.lower() == "python":
         success, stdout, stderr = sandbox.exec_shell_sync(
-            f"python3 {temp_file}", cwd="/home/gem/workspace"
+            f"timeout {timeout} python3 {temp_file}", cwd="/home/gem/workspace"
         )
     else:
         success, stdout, stderr = sandbox.exec_shell_sync(
-            f"bash {temp_file}", cwd="/home/gem/workspace"
+            f"timeout {timeout} bash {temp_file}", cwd="/home/gem/workspace"
         )
 
     sandbox.exec_shell_sync(f"rm -f {temp_file}", cwd="")

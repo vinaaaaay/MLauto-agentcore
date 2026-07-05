@@ -41,7 +41,7 @@ def _docker_translate(text: str) -> str:
 
 def _init_llm(llm_config: dict):
     """Helper to initialize ChatOpenAI or ChatOpenRouter directly from config."""
-    model = llm_config.get("model") or os.environ.get("LLM_MODEL", "gpt-4o")
+    model = llm_config.get("model", "gpt-4o")
     temperature = llm_config.get("temperature", 0.1)
     max_tokens = llm_config.get("max_tokens") # None means use default API limit
 
@@ -152,12 +152,16 @@ async def evaluate_execution_results(
     if error_summary:
         error_message += f"Error summary: {error_summary}"
 
+    error_analysis_text = error_summary or stderr
+    if decision == "FIX" and not error_analysis_text:
+        error_analysis_text = content.strip()[:500] if content.strip() else "Evaluation returned FIX but provided no error summary or stderr."
+
     return {
         "decision": decision,
         "error_summary": error_summary,
         "validation_score": validation_score,
         "error_message": error_message,
-        "error_analysis": error_summary or stderr
+        "error_analysis": error_analysis_text
     }
 
 
@@ -232,7 +236,7 @@ def build_coder_agent_graph(ctx=None, metric_logger=None):
         
         llm_config = config.get("llm", {}).copy()
         if "model" not in llm_config:
-            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
+            llm_config["model"] = "gpt-4o"
         llm = _init_llm(llm_config)
         
         mcts_config = config.get("mcts", {})
@@ -335,7 +339,7 @@ Please prioritize model architecture improvements and training optimization to e
         
         llm_config = config.get("llm", {}).copy()
         if "model" not in llm_config:
-            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
+            llm_config["model"] = "gpt-4o"
         llm = _init_llm(llm_config)
         
         sandbox = state.get("sandbox_client")
@@ -451,7 +455,7 @@ Please prioritize model architecture improvements and training optimization to e
         node_id = state.get("node_id")
         llm_config = config.get("llm", {}).copy()
         if "model" not in llm_config:
-            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
+            llm_config["model"] = "gpt-4o"
 
         if node_id is not None:
             iter_folder = f"/home/gem/workspace/node_{node_id}"

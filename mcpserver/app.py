@@ -97,7 +97,10 @@ def handle(payload: dict) -> dict:
             top_k=top_k,
             condensed=condensed,
         )
-        logger.info(f"[handle] returned {len(results)} result(s)")
+        import resource
+        import time
+        peak_ram_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+        logger.info(f"[handle] returned {len(results)} result(s) | Peak RAM: {peak_ram_mb:.2f} MB")
         return {
             "results": results,
             "result_count": len(results),

@@ -126,7 +126,7 @@ async def _run_semantic_core(
     # variable — callers cannot override the mcpserver endpoint.
     config: Dict[str, Any] = {
         "llm": {
-            "model":       os.environ.get("LLM_MODEL", "gpt-4o-mini"),
+            "model":       "gpt-4o-mini",
             "temperature": 0.1,
         },
         "mcp_servers": {
@@ -176,47 +176,26 @@ async def _run_semantic_core(
         "callbacks": [SessionMetricsCallback(ctx=ctx, metric_logger=metric_logger)]
     }
 
-    import psutil
-    process = psutil.Process()
-    start_cpu = process.cpu_times()
-    try:
-        start_io = process.io_counters()
-    except Exception:
-        start_io = None
-        
+    import resource
     t0 = time.time()
     result = await _graph.ainvoke(initial_state, config=langgraph_config)
     elapsed_s = round(time.time() - t0, 4)
 
     tutorial_prompt = result.get("tutorial_prompt", "")
 
+    peak_ram_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+
     logger.info(
         f"[_run_semantic_core] Done in {elapsed_s}s. "
-        f"tutorial_prompt={len(tutorial_prompt)} chars"
+        f"tutorial_prompt={len(tutorial_prompt)} chars | Peak RAM: {peak_ram_mb:.2f} MB"
     )
-    end_cpu = psutil.Process().cpu_times()
-    active_cpu_s = (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
-    wait_time_s = max(0, elapsed_s - active_cpu_s)
-
-    io_read_mb = 0.0
-    io_write_mb = 0.0
-    if start_io:
-        try:
-            end_io = psutil.Process().io_counters()
-            io_read_mb = (end_io.read_bytes - start_io.read_bytes) / (1024 * 1024)
-            io_write_mb = (end_io.write_bytes - start_io.write_bytes) / (1024 * 1024)
-        except Exception:
-            pass
             
     emit_event(metric_logger, {
         **ctx.snapshot(),
-        "event_type":  "psutil_metrics_graph",
+        "event_type":  "resource_metrics",
         "graph_name":  "semantic_agent",
         "graph_e2e_s": elapsed_s,
-        "active_cpu_s": round(active_cpu_s, 4),
-        "wait_time_s": round(wait_time_s, 4),
-        "io_read_MB": round(io_read_mb, 4),
-        "io_write_MB": round(io_write_mb, 4),
+        "peak_ram_MB": round(peak_ram_mb, 4),
         "step_count":  3,
     })
 

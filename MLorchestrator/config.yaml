@@ -1,7 +1,3 @@
-llm:
-  model: "deepseek/deepseek-v4-pro"
-  temperature: 0.0
-
 mcts:
   max_iterations: 20
   continuous_improvement: true

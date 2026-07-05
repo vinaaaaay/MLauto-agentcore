@@ -1,0 +1,3141 @@
+[
+  {
+    "test_name": "test_debug_promotion_and_terminal_cascading",
+    "timestamp": 1783241041.6602504,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "next_time_step": 3,
+        "tool_index": 0,
+        "best_node_id": null,
+        "best_validation_score": null,
+        "worst_validation_score": null,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 2,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [
+              2
+            ],
+            "stage": "debug",
+            "visits": 1,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "2": {
+            "node_id": 2,
+            "parent_id": 1,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          }
+        }
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "debug"
+      },
+      "coding_results": {
+        "python_code": "print('fixed')",
+        "decision": "SUCCESS",
+        "validation_score": 0.85
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "next_time_step": 3,
+        "tool_index": 0,
+        "best_node_id": 2,
+        "best_validation_score": 0.85,
+        "worst_validation_score": 0.85,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 2,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [
+              2
+            ],
+            "stage": "debug",
+            "visits": 1,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "2": {
+            "node_id": 2,
+            "parent_id": 1,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "python_code": "print('fixed')",
+            "bash_script": "",
+            "stdout": "",
+            "stderr": "",
+            "execution_time": 0.0,
+            "processing_time": 0.0,
+            "ai_call_time": 0.0,
+            "error_message": "",
+            "error_analysis": "",
+            "validation_score": 0.85
+          }
+        },
+        "all_error_analyses": [],
+        "best_score": 0.85,
+        "best_code": "print('fixed')"
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "debug"
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.7213664054870605
+  },
+  {
+    "test_name": "test_debug_promotion_and_terminal_cascading",
+    "timestamp": 1783241042.2151706,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "next_time_step": 3,
+        "tool_index": 0,
+        "best_node_id": 2,
+        "best_validation_score": 0.85,
+        "worst_validation_score": 0.85,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 2,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [
+              2
+            ],
+            "stage": "debug",
+            "visits": 1,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "2": {
+            "node_id": 2,
+            "parent_id": 1,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "python_code": "print('fixed')",
+            "bash_script": "",
+            "stdout": "",
+            "stderr": "",
+            "execution_time": 0.0,
+            "processing_time": 0.0,
+            "ai_call_time": 0.0,
+            "error_message": "",
+            "error_analysis": "",
+            "validation_score": 0.85
+          }
+        },
+        "all_error_analyses": [],
+        "best_score": 0.85,
+        "best_code": "print('fixed')"
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "debug"
+      }
+    },
+    "response": {
+      "next_time_step": 3,
+      "tool_index": 0,
+      "best_node_id": 2,
+      "best_validation_score": 0.85,
+      "worst_validation_score": 0.85,
+      "mcts_config": {
+        "initial_root_children": 1,
+        "max_debug_depth": 3
+      },
+      "selected_tools": [
+        "autogluon.tabular"
+      ],
+      "nodes": {
+        "-1": {
+          "node_id": -1,
+          "parent_id": null,
+          "child_ids": [
+            0,
+            2
+          ],
+          "stage": "root",
+          "visits": 3,
+          "is_successful": true,
+          "is_terminal": false,
+          "validated_visits": 1,
+          "validated_reward": 0.85
+        },
+        "0": {
+          "node_id": 0,
+          "parent_id": -1,
+          "child_ids": [
+            1
+          ],
+          "stage": "evolve",
+          "visits": 2,
+          "is_successful": false,
+          "is_terminal": true,
+          "tool_used": "autogluon.tabular"
+        },
+        "1": {
+          "node_id": 1,
+          "parent_id": 0,
+          "child_ids": [],
+          "stage": "debug",
+          "visits": 1,
+          "is_successful": false,
+          "is_terminal": true,
+          "tool_used": "autogluon.tabular"
+        },
+        "2": {
+          "node_id": 2,
+          "parent_id": -1,
+          "child_ids": [],
+          "stage": "debug",
+          "visits": 1,
+          "is_successful": true,
+          "is_terminal": false,
+          "tool_used": "autogluon.tabular",
+          "python_code": "print('fixed')",
+          "bash_script": "",
+          "stdout": "",
+          "stderr": "",
+          "execution_time": 0.0,
+          "processing_time": 0.0,
+          "ai_call_time": 0.0,
+          "error_message": "",
+          "error_analysis": "",
+          "validation_score": 0.85,
+          "is_debug_successful": true,
+          "validated_visits": 1,
+          "validated_reward": 0.85
+        }
+      },
+      "all_error_analyses": [],
+      "best_score": 0.85,
+      "best_code": "print('fixed')",
+      "iteration": 1
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5525848865509033
+  },
+  {
+    "test_name": "test_edge_cases",
+    "timestamp": 1783241042.8161554,
+    "payload": {
+      "action": "init",
+      "selected_tools": [],
+      "config": {
+        "mcts": {}
+      }
+    },
+    "response": {
+      "status": "FAILED",
+      "error": "No tools selected or available in perception_results or payload."
+    },
+    "status": "FAILED",
+    "error": "No tools selected or available in perception_results or payload.",
+    "latency_seconds": 0.5963101387023926
+  },
+  {
+    "test_name": "test_edge_cases",
+    "timestamp": 1783241043.396641,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "next_time_step": 1,
+        "tool_index": 0,
+        "best_node_id": null,
+        "mcts_config": {
+          "initial_root_children": 1
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 1,
+            "is_successful": false,
+            "is_terminal": true,
+            "tool_used": "autogluon.tabular"
+          }
+        }
+      }
+    },
+    "response": {
+      "node_id": null,
+      "stage": "root",
+      "depth": 0,
+      "is_complete": true
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5770120620727539
+  },
+  {
+    "test_name": "test_json_serialization_string_keys",
+    "timestamp": 1783241043.985333,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "next_time_step": 1,
+        "tool_index": 0,
+        "best_node_id": null,
+        "mcts_config": {
+          "initial_root_children": 1
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          }
+        }
+      }
+    },
+    "response": {
+      "node_id": 0,
+      "stage": "evolve",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5848822593688965
+  },
+  {
+    "test_name": "test_max_debug_depth_terminal_cascading",
+    "timestamp": 1783241044.414127,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "next_time_step": 2,
+        "tool_index": 0,
+        "best_node_id": null,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 1,
+            "debug_attempts": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          }
+        }
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "debug"
+      },
+      "coding_results": {
+        "decision": "FIX",
+        "error_message": "still broken"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "next_time_step": 2,
+        "tool_index": 0,
+        "best_node_id": null,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 1,
+            "debug_attempts": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "python_code": "",
+            "bash_script": "",
+            "stdout": "",
+            "stderr": "",
+            "execution_time": 0.0,
+            "processing_time": 0.0,
+            "ai_call_time": 0.0,
+            "error_message": "still broken",
+            "error_analysis": "",
+            "validation_score": null
+          }
+        },
+        "all_error_analyses": [],
+        "best_score": null
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "debug"
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.4191129207611084
+  },
+  {
+    "test_name": "test_max_debug_depth_terminal_cascading",
+    "timestamp": 1783241045.0133598,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "next_time_step": 2,
+        "tool_index": 0,
+        "best_node_id": null,
+        "mcts_config": {
+          "initial_root_children": 1,
+          "max_debug_depth": 3
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0
+            ],
+            "stage": "root",
+            "visits": 1,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [
+              1
+            ],
+            "stage": "evolve",
+            "visits": 1,
+            "debug_attempts": 2,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": 0,
+            "child_ids": [],
+            "stage": "debug",
+            "visits": 0,
+            "is_successful": false,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "python_code": "",
+            "bash_script": "",
+            "stdout": "",
+            "stderr": "",
+            "execution_time": 0.0,
+            "processing_time": 0.0,
+            "ai_call_time": 0.0,
+            "error_message": "still broken",
+            "error_analysis": "",
+            "validation_score": null
+          }
+        },
+        "all_error_analyses": [],
+        "best_score": null
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "debug"
+      }
+    },
+    "response": {
+      "next_time_step": 2,
+      "tool_index": 0,
+      "best_node_id": null,
+      "mcts_config": {
+        "initial_root_children": 1,
+        "max_debug_depth": 3
+      },
+      "selected_tools": [
+        "autogluon.tabular"
+      ],
+      "nodes": {
+        "-1": {
+          "node_id": -1,
+          "parent_id": null,
+          "child_ids": [
+            0
+          ],
+          "stage": "root",
+          "visits": 2,
+          "is_successful": true,
+          "is_terminal": false,
+          "failure_visits": 1
+        },
+        "0": {
+          "node_id": 0,
+          "parent_id": -1,
+          "child_ids": [
+            1
+          ],
+          "stage": "evolve",
+          "visits": 2,
+          "debug_attempts": 3,
+          "is_successful": false,
+          "is_terminal": true,
+          "tool_used": "autogluon.tabular",
+          "failure_visits": 1
+        },
+        "1": {
+          "node_id": 1,
+          "parent_id": 0,
+          "child_ids": [],
+          "stage": "debug",
+          "visits": 1,
+          "is_successful": false,
+          "is_terminal": true,
+          "tool_used": "autogluon.tabular",
+          "python_code": "",
+          "bash_script": "",
+          "stdout": "",
+          "stderr": "",
+          "execution_time": 0.0,
+          "processing_time": 0.0,
+          "ai_call_time": 0.0,
+          "error_message": "still broken",
+          "error_analysis": "",
+          "validation_score": null,
+          "failure_visits": 1
+        }
+      },
+      "all_error_analyses": [],
+      "best_score": null,
+      "iteration": 1
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5930612087249756
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241045.7223814,
+    "payload": {
+      "action": "init",
+      "selected_tools": [
+        "autogluon.tabular",
+        "xgboost"
+      ],
+      "max_iterations": 10,
+      "config": {
+        "mcts": {
+          "initial_root_children": 3,
+          "exploration_constant": 1.414,
+          "max_debug_depth": 3,
+          "max_debug_children": 2,
+          "max_evolve_children": 2,
+          "failure_offset": 0,
+          "failure_penalty_weight": 0.5
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 0,
+      "max_iterations": 10,
+      "all_error_analyses": [],
+      "best_score": null,
+      "best_code": "",
+      "best_node_id": null,
+      "best_validation_score": null,
+      "worst_validation_score": null,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.704383373260498
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241046.7148774,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": null,
+        "best_code": "",
+        "best_node_id": null,
+        "best_validation_score": null,
+        "worst_validation_score": null,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": -1,
+      "stage": "root",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.9893438816070557
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241047.4116898,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": null,
+        "best_code": "",
+        "best_node_id": null,
+        "best_validation_score": null,
+        "worst_validation_score": null,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": -1,
+        "stage": "root",
+        "depth": 0,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": null,
+        "best_code": "",
+        "best_node_id": null,
+        "best_validation_score": null,
+        "worst_validation_score": null,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 0,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6923630237579346
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241052.9357593,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": null,
+        "best_code": "",
+        "best_node_id": null,
+        "best_validation_score": null,
+        "worst_validation_score": null,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 0,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 0\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "SUCCESS",
+        "validation_score": 0.5,
+        "error_analysis": "None",
+        "error_message": ""
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 0,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.520454168319702
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241058.4898965,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 0,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 0,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 1,
+      "max_iterations": 10,
+      "all_error_analyses": [],
+      "best_score": 0.5,
+      "best_code": "# code for node 0\nprint('success')",
+      "best_node_id": 0,
+      "best_validation_score": 0.5,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.547302007675171
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241059.1280615,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": -1,
+      "stage": "root",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6310985088348389
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241059.7743826,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": -1,
+        "stage": "root",
+        "depth": 0,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6394455432891846
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241060.365126,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 1\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "FIX",
+        "validation_score": null,
+        "error_analysis": "Execution error on tabular fit",
+        "error_message": "Val error"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5871670246124268
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241061.0115006,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 1,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 2,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.5,
+      "best_code": "# code for node 0\nprint('success')",
+      "best_node_id": 0,
+      "best_validation_score": 0.5,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6347317695617676
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241061.5906765,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": -1,
+      "stage": "root",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5743379592895508
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241062.2755702,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": -1,
+        "stage": "root",
+        "depth": 0,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6812736988067627
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241062.8844512,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.5,
+        "best_code": "# code for node 0\nprint('success')",
+        "best_node_id": 0,
+        "best_validation_score": 0.5,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 2\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "SUCCESS",
+        "validation_score": 0.58,
+        "error_analysis": "None",
+        "error_message": ""
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.595850944519043
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241063.4460022,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 2,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 3,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.58,
+      "best_code": "# code for node 2\nprint('success')",
+      "best_node_id": 2,
+      "best_validation_score": 0.58,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5516376495361328
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241064.0654519,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 2,
+      "stage": "evolve",
+      "depth": 1,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6132936477661133
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241064.6405644,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 2,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 3,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 2\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5641279220581055
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241070.2962596,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 3,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 2\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 3\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "FIX",
+        "validation_score": null,
+        "error_analysis": "Execution error on tabular fit",
+        "error_message": "Val error"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 3,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 2\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.651238918304443
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241075.8220851,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 3,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 3,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 2\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 4,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.58,
+      "best_code": "# code for node 2\nprint('success')",
+      "best_node_id": 2,
+      "best_validation_score": 0.58,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.513946294784546
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241076.3379881,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 0,
+      "stage": "evolve",
+      "depth": 1,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5107111930847168
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241076.96956,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 0,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 4,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 0\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.626645565032959
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241077.5926125,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.58,
+        "best_code": "# code for node 2\nprint('success')",
+        "best_node_id": 2,
+        "best_validation_score": 0.58,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 4,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 0\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 4\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "SUCCESS",
+        "validation_score": 0.66,
+        "error_analysis": "None",
+        "error_message": ""
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 4,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 0\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6153390407562256
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241078.305085,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 4,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 4,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 0\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 5,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.66,
+      "best_code": "# code for node 4\nprint('success')",
+      "best_node_id": 4,
+      "best_validation_score": 0.66,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.7036805152893066
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241078.919651,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 4,
+      "stage": "evolve",
+      "depth": 2,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6026175022125244
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241079.5150716,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 4,
+        "stage": "evolve",
+        "depth": 2,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 5,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 4\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5873763561248779
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241080.1145482,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 5,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 4\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 5\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "FIX",
+        "validation_score": null,
+        "error_analysis": "Execution error on tabular fit",
+        "error_message": "Val error"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 5,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 4\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.591599702835083
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241080.7208798,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 5,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 5,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 4\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 6,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit",
+        "[Node 5 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.66,
+      "best_code": "# code for node 4\nprint('success')",
+      "best_node_id": 4,
+      "best_validation_score": 0.66,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5889589786529541
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241081.2445478,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 1,
+      "stage": "evolve",
+      "depth": 1,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5098612308502197
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241081.8184147,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 1,
+        "stage": "evolve",
+        "depth": 1,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 1\nprint('success')",
+          "parent_bash": "",
+          "parent_error": "Val error"
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5654995441436768
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241087.4499497,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.66,
+        "best_code": "# code for node 4\nprint('success')",
+        "best_node_id": 4,
+        "best_validation_score": 0.66,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 1\nprint('success')",
+          "parent_bash": "",
+          "parent_error": "Val error"
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 6\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "SUCCESS",
+        "validation_score": 0.74,
+        "error_analysis": "None",
+        "error_message": ""
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 1\nprint('success')",
+          "parent_bash": "",
+          "parent_error": "Val error"
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.623713493347168
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241093.052064,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 6,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 1\nprint('success')",
+          "parent_bash": "",
+          "parent_error": "Val error"
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 7,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit",
+        "[Node 5 (xgboost)] Execution error on tabular fit"
+      ],
+      "best_score": 0.74,
+      "best_code": "# code for node 6\nprint('success')",
+      "best_node_id": 6,
+      "best_validation_score": 0.74,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.591434478759766
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241093.5731118,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 6,
+      "stage": "debug",
+      "depth": 2,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5091063976287842
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241094.158214,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 7,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5772345066070557
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241094.7543511,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 7,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 7\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "FIX",
+        "validation_score": null,
+        "error_analysis": "Execution error on tabular fit",
+        "error_message": "Val error"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 7,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5837466716766357
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241095.383522,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 7,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 7,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 8,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit",
+        "[Node 5 (xgboost)] Execution error on tabular fit",
+        "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+      ],
+      "best_score": 0.74,
+      "best_code": "# code for node 6\nprint('success')",
+      "best_node_id": 6,
+      "best_validation_score": 0.74,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.616281270980835
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241095.9155734,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 6,
+      "stage": "debug",
+      "depth": 2,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5148742198944092
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241096.5676594,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 6,
+        "stage": "debug",
+        "depth": 2,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 8,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.637277364730835
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241097.2044399,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.74,
+        "best_code": "# code for node 6\nprint('success')",
+        "best_node_id": 6,
+        "best_validation_score": 0.74,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 8,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 8\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "SUCCESS",
+        "validation_score": 0.8200000000000001,
+        "error_analysis": "None",
+        "error_message": ""
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 8,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6259853839874268
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241097.8079932,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 8,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 8,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false,
+        "current_tool": "xgboost",
+        "parent_context": {
+          "parent_code": "# code for node 6\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 9,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit",
+        "[Node 5 (xgboost)] Execution error on tabular fit",
+        "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+      ],
+      "best_score": 0.8200000000000001,
+      "best_code": "# code for node 8\nprint('success')",
+      "best_node_id": 8,
+      "best_validation_score": 0.8200000000000001,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5793051719665527
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241098.372056,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "node_id": 8,
+      "stage": "evolve",
+      "depth": 3,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5467522144317627
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241098.9965265,
+    "payload": {
+      "action": "expand",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 8,
+        "stage": "evolve",
+        "depth": 3,
+        "is_complete": false
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 9,
+        "stage": "evolve",
+        "depth": 4,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 8\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.6094071865081787
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241104.556228,
+    "payload": {
+      "action": "update",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 9,
+        "stage": "evolve",
+        "depth": 4,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 8\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      },
+      "coding_results": {
+        "python_code": "# code for node 9\nprint('success')",
+        "bash_script": "",
+        "stdout": "success",
+        "stderr": "",
+        "decision": "FIX",
+        "validation_score": null,
+        "error_analysis": "Execution error on tabular fit",
+        "error_message": "Val error"
+      }
+    },
+    "response": {
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit",
+          "[Node 9 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 9,
+        "stage": "evolve",
+        "depth": 4,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 8\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.546541690826416
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241110.1590393,
+    "payload": {
+      "action": "backpropagate",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 9,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit",
+          "[Node 9 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      },
+      "current_selection": {
+        "node_id": 9,
+        "stage": "evolve",
+        "depth": 4,
+        "is_complete": false,
+        "current_tool": "autogluon.tabular",
+        "parent_context": {
+          "parent_code": "# code for node 8\nprint('success')",
+          "parent_bash": "",
+          "parent_error": ""
+        }
+      }
+    },
+    "response": {
+      "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+      "iteration": 10,
+      "max_iterations": 10,
+      "all_error_analyses": [
+        "[Node 1 (xgboost)] Execution error on tabular fit",
+        "[Node 3 (xgboost)] Execution error on tabular fit",
+        "[Node 5 (xgboost)] Execution error on tabular fit",
+        "[Node 7 (autogluon.tabular)] Execution error on tabular fit",
+        "[Node 9 (autogluon.tabular)] Execution error on tabular fit"
+      ],
+      "best_score": 0.8200000000000001,
+      "best_code": "# code for node 8\nprint('success')",
+      "best_node_id": 8,
+      "best_validation_score": 0.8200000000000001,
+      "worst_validation_score": 0.5,
+      "mcts_e2e_time": 0.0
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 5.588647127151489
+  },
+  {
+    "test_name": "test_multi_iteration_search_loop",
+    "timestamp": 1783241110.7596877,
+    "payload": {
+      "action": "finalize",
+      "mcts_tree": {
+        "s3_uri": "s3://mlzero-output/mlorchestrator/runs/20260705_084405_cb7ad172/mcts_tree.json",
+        "iteration": 10,
+        "max_iterations": 10,
+        "all_error_analyses": [
+          "[Node 1 (xgboost)] Execution error on tabular fit",
+          "[Node 3 (xgboost)] Execution error on tabular fit",
+          "[Node 5 (xgboost)] Execution error on tabular fit",
+          "[Node 7 (autogluon.tabular)] Execution error on tabular fit",
+          "[Node 9 (autogluon.tabular)] Execution error on tabular fit"
+        ],
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')",
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "mcts_e2e_time": 0.0
+      }
+    },
+    "response": {
+      "status": {
+        "total_nodes": 10,
+        "successful_nodes": 5,
+        "terminal_nodes": 1,
+        "expandable_nodes": 8,
+        "best_node_id": 8,
+        "best_validation_score": 0.8200000000000001,
+        "worst_validation_score": 0.5,
+        "best_score": 0.8200000000000001,
+        "best_code": "# code for node 8\nprint('success')"
+      },
+      "tree_visualization": "└── Root\n    ├── Node 0 [evolve|autogluon.tabular|✓|v=3|score=0.5000]\n    │   └── Node 4 [evolve|autogluon.tabular|✓|v=2|score=0.6600]\n    │       └── Node 5 [evolve|xgboost|✗|v=1|no score]\n    ├── Node 1 [evolve|xgboost|✗|v=1|no score] [TERMINAL]\n    ├── Node 2 [evolve|autogluon.tabular|✓|v=2|score=0.5800]\n    │   └── Node 3 [evolve|xgboost|✗|v=1|no score]\n    └── Node 6 [debug|xgboost|✓|v=4|score=0.7400]\n        ├── Node 7 [evolve|autogluon.tabular|✗|v=1|no score]\n        └── Node 8 [evolve|xgboost|✓|v=2|score=0.8200]\n            └── Node 9 [evolve|autogluon.tabular|✗|v=1|no score]"
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.5920655727386475
+  },
+  {
+    "test_name": "test_uct_scoring_logic",
+    "timestamp": 1783241111.1832674,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "next_time_step": 2,
+        "tool_index": 0,
+        "best_node_id": 0,
+        "best_validation_score": 0.9,
+        "worst_validation_score": 0.5,
+        "mcts_config": {
+          "initial_root_children": 2,
+          "exploration_constant": 1.414,
+          "max_debug_depth": 3,
+          "max_debug_children": 2,
+          "max_evolve_children": 2
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0,
+              1
+            ],
+            "stage": "root",
+            "visits": 10,
+            "validated_visits": 5,
+            "validated_reward": 2.5,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 5,
+            "validated_visits": 5,
+            "validated_reward": 2.5,
+            "validation_score": 0.5,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 5,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "validated_visits": 5,
+            "validated_reward": 4.5,
+            "validation_score": 0.9
+          }
+        }
+      }
+    },
+    "response": {
+      "node_id": 1,
+      "stage": "evolve",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.4117720127105713
+  },
+  {
+    "test_name": "test_uct_scoring_logic",
+    "timestamp": 1783241111.5666711,
+    "payload": {
+      "action": "select",
+      "mcts_tree": {
+        "next_time_step": 2,
+        "tool_index": 0,
+        "best_node_id": 0,
+        "best_validation_score": 0.9,
+        "worst_validation_score": 0.5,
+        "mcts_config": {
+          "initial_root_children": 2,
+          "exploration_constant": 1.414,
+          "max_debug_depth": 3,
+          "max_debug_children": 2,
+          "max_evolve_children": 2
+        },
+        "selected_tools": [
+          "autogluon.tabular"
+        ],
+        "nodes": {
+          "-1": {
+            "node_id": -1,
+            "parent_id": null,
+            "child_ids": [
+              0,
+              1
+            ],
+            "stage": "root",
+            "visits": 10,
+            "validated_visits": 5,
+            "validated_reward": 2.5,
+            "is_successful": true,
+            "is_terminal": false
+          },
+          "0": {
+            "node_id": 0,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 5,
+            "validated_visits": 5,
+            "validated_reward": 2.5,
+            "validation_score": 0.5,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular"
+          },
+          "1": {
+            "node_id": 1,
+            "parent_id": -1,
+            "child_ids": [],
+            "stage": "evolve",
+            "visits": 5,
+            "is_successful": true,
+            "is_terminal": false,
+            "tool_used": "autogluon.tabular",
+            "validated_visits": 5,
+            "validated_reward": 4.5,
+            "validation_score": 0.9
+          }
+        }
+      }
+    },
+    "response": {
+      "node_id": 1,
+      "stage": "evolve",
+      "depth": 0,
+      "is_complete": false
+    },
+    "status": "COMPLETED",
+    "error": "",
+    "latency_seconds": 0.3637394905090332
+  }
+]

@@ -6,6 +6,8 @@ class MLorchestratorState(TypedDict, total=False):
     output_folder: str
     user_input: str
     config: dict
+    s3_uri: str
+    s3_bucket: str
 
     # ── Perception Results (cached from A2A) ──
     data_prompt: str
@@ -28,6 +30,7 @@ class MLorchestratorState(TypedDict, total=False):
 
     # ── Memory Result (from A2A) ──
     tutorial_prompt: str
+    semantic_results: Dict[str, Any]
 
     # ── Coding Result (from A2A) ──
     python_code: str
@@ -39,6 +42,7 @@ class MLorchestratorState(TypedDict, total=False):
     validation_score: Optional[float]
     error_analysis: str
     error_message: str
+    coding_results: Dict[str, Any]
 
     # ── Accumulated State ──
     all_error_analyses: List[str]

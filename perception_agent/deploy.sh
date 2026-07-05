@@ -104,7 +104,8 @@ agentcore deploy $DEPLOY_FLAGS "$@" \
     --env TARGET_PORT="${TARGET_PORT:-8080}" \
     --env OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
     --env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
-    --env LLM_MODEL="${LLM_MODEL:-}"
+    --env LLM_MODEL="${LLM_MODEL:-}" \
+    --env SANDBOX_MCP_AUTH_KEY="${SANDBOX_MCP_AUTH_KEY:-}"
 
 echo ""
 echo "=========================================================="

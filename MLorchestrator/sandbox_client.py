@@ -74,15 +74,21 @@ class SandboxClient:
 
     async def _invoke_gateway_async(self, method: str, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
         """Invokes the gateway Lambda asynchronously in a thread."""
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream"
+        }
+        auth_key = os.environ.get("SANDBOX_MCP_AUTH_KEY")
+        if auth_key:
+            auth_key_clean = auth_key.strip('"')
+            headers["Authorization"] = f"Bearer {auth_key_clean}"
+
         gateway_payload = {
             "target_ip": self.target_ip,
             "target_port": self.target_port,
             "method": method,
             "path": path,
-            "headers": {
-                "Content-Type": "application/json",
-                "Accept": "application/json, text/event-stream"
-            },
+            "headers": headers,
             "body": body
         }
         
@@ -145,13 +151,16 @@ class SandboxClient:
                 
         return last_result if last_result else {"error": {"code": -32000, "message": f"Failed to parse SSE payload: {text[:200]}"}}
 
-    async def exec_shell(self, command: str, cwd: str = "/home/gem/workspace") -> Tuple[bool, str, str]:
+    async def exec_shell(self, command: str, cwd: str = "/home/gem/workspace", timeout: Optional[int] = None) -> Tuple[bool, str, str]:
         """Executes a command inside the sandbox synchronously."""
         full_command = f"mkdir -p {cwd} && cd {cwd} && {command}" if cwd else command
         encoded_cmd = base64.b64encode(full_command.encode("utf-8")).decode("utf-8")
         wrapper_command = f"echo -n '{encoded_cmd}' | base64 -d | bash"
 
-        res = await self.call_tool("sandbox_execute_bash", {"cmd": wrapper_command, "cwd": "/tmp"})
+        args = {"cmd": wrapper_command, "cwd": "/tmp"}
+        if timeout is not None:
+            args["timeout"] = timeout
+        res = await self.call_tool("sandbox_execute_bash", args)
         inner = self._parse_inner_response(res)
         
         if "error" in inner:
@@ -190,5 +199,5 @@ class SandboxClient:
 
     # ── Synchronous wrappers ──
 
-    def exec_shell_sync(self, command: str, cwd: str = "/home/gem/workspace") -> Tuple[bool, str, str]:
-        return run_sync(self.exec_shell(command, cwd))
+    def exec_shell_sync(self, command: str, cwd: str = "/home/gem/workspace", timeout: Optional[int] = None) -> Tuple[bool, str, str]:
+        return run_sync(self.exec_shell(command, cwd, timeout))

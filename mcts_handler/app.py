@@ -93,7 +93,8 @@ def _make_lightweight_tree(tree):
             "best_code": tree.get("best_code", ""),
             "best_node_id": tree.get("best_node_id"),
             "best_validation_score": tree.get("best_validation_score"),
-            "worst_validation_score": tree.get("worst_validation_score")
+            "worst_validation_score": tree.get("worst_validation_score"),
+            "mcts_e2e_time": tree.get("mcts_e2e_time", 0.0)
         }
     return tree
 
@@ -232,9 +233,9 @@ def handle(payload: dict) -> dict:
             
             all_analyses = tree.get("all_error_analyses", [])
             node = tree["nodes"].get(node_id, {})
-            if not node.get("is_successful") and coding_results.get("error_analysis"):
+            if not node.get("is_successful"):
                 tool = node.get("tool_used", "")
-                analysis_str = str(coding_results.get("error_analysis"))[:1000]
+                analysis_str = str(coding_results.get("error_analysis") or "No error summary or stderr provided")[:1000]
                 all_analyses.append(f"[Node {node_id} ({tool})] {analysis_str}")
                 
             tree["all_error_analyses"] = all_analyses[-20:]
