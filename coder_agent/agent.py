@@ -5,7 +5,7 @@ import uuid
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from langchain_openai import ChatOpenAI
 from langgraph.graph import StateGraph, START, END
@@ -29,6 +29,16 @@ from common_local.metrics_emitter import node_metrics, emit_event
 metric_logger = logging.getLogger("agent_metrics")
 ctx = MetricsContext(agent_id="coder_agent")
 
+def _docker_translate(text: str) -> str:
+    if not text:
+        return ""
+    text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
+    text = text.replace("/workspace/data", "/home/gem/workspace/data")
+    text = text.replace("/workspace/output", "/home/gem/workspace")
+    text = text.replace("/workspace", "/home/gem/workspace")
+    text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
+    return text
+
 def _init_llm(llm_config: dict):
     """Helper to initialize ChatOpenAI or ChatOpenRouter directly from config."""
     model = llm_config.get("model") or os.environ.get("LLM_MODEL", "gpt-4o")
@@ -49,31 +59,36 @@ def _init_llm(llm_config: dict):
 
         if is_reasoning_model:
             logger.info("Detected reasoning model. Forcing temp=1.")
-            kwargs = {"model": model, "temperature": 1, "api_key": api_key}
+            kwargs = {"model": model, "temperature": 1, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
             if max_tokens is not None:
                 kwargs["max_completion_tokens"] = max_tokens
             return ChatOpenAI(**kwargs)
         
         logger.info(f"Initialized OpenAI LLM: model={model}, temp={temperature}")
-        kwargs = {"model": model, "temperature": temperature, "api_key": api_key}
+        kwargs = {"model": model, "temperature": temperature, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
         return ChatOpenAI(**kwargs)
 
     else:
-        from langchain_openrouter import ChatOpenRouter
         openrouter_api_key = os.environ.get("OPENROUTER_API_KEY")
         if not openrouter_api_key:
             raise EnvironmentError(
                 "OPENROUTER_API_KEY environment variable is not set."
             )
         
-        logger.info(f"Initialized OpenRouter LLM: model={model}, temp={temperature}")
-        return ChatOpenRouter(
-            model=model,
-            temperature=temperature,
-            api_key=openrouter_api_key,
-        )
+        logger.info(f"Initialized OpenRouter via ChatOpenAI: model={model}, temp={temperature}")
+        kwargs = {
+            "model": model,
+            "temperature": temperature,
+            "api_key": openrouter_api_key,
+            "base_url": "https://openrouter.ai/api/v1",
+            "max_retries": 1,
+            "timeout": 60.0
+        }
+        if max_tokens is not None:
+            kwargs["max_tokens"] = max_tokens
+        return ChatOpenAI(**kwargs)
 
 
 async def evaluate_execution_results(
@@ -91,16 +106,6 @@ async def evaluate_execution_results(
     def truncate_start(text, max_len=8192):
         if len(text) > max_len:
             return f"[...TRUNCATED ({len(text) - max_len} chars)...]\n" + text[-max_len:]
-        return text
-
-    def _docker_translate(text: str) -> str:
-        if not text:
-            return ""
-        text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
-        text = text.replace("/workspace/data", "/home/gem/workspace/data")
-        text = text.replace("/workspace/output", "/home/gem/workspace")
-        text = text.replace("/workspace", "/home/gem/workspace")
-        text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
         return text
 
     prompt = EXECUTER_PROMPT.format(
@@ -182,6 +187,7 @@ def build_coder_agent_graph(ctx=None, metric_logger=None):
                 success, stdout, stderr = await sandbox.exec_shell(
                     command=kwargs["command"],
                     cwd=kwargs.get("cwd", "/home/gem/workspace"),
+                    timeout=kwargs.get("timeout"),
                 )
                 result = (success, stdout, stderr)
                 output = json.dumps({
@@ -271,15 +277,7 @@ Please prioritize model architecture improvements and training optimization to e
         per_iter_output = f"{iter_folder}/output"
 
         # Translate paths to sandbox path
-        def _docker_translate(text: str) -> str:
-            if not text:
-                return ""
-            text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
-            text = text.replace("/workspace/data", "/home/gem/workspace/data")
-            text = text.replace("/workspace/output", "/home/gem/workspace")
-            text = text.replace("/workspace", "/home/gem/workspace")
-            text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
-            return text
+
 
         data_prompt = _docker_translate(state.get("data_prompt", ""))
         task_description = _docker_translate(state.get("task_description", ""))
@@ -393,15 +391,7 @@ Please prioritize model architecture improvements and training optimization to e
             configure_env=configure_env,
         )
 
-        def _docker_translate(text: str) -> str:
-            if not text:
-                return ""
-            text = text.replace("/home/gem/workspace", "PLACEHOLDER_HOME_GEM_WORKSPACE")
-            text = text.replace("/workspace/data", "/home/gem/workspace/data")
-            text = text.replace("/workspace/output", "/home/gem/workspace")
-            text = text.replace("/workspace", "/home/gem/workspace")
-            text = text.replace("PLACEHOLDER_HOME_GEM_WORKSPACE", "/home/gem/workspace")
-            return text
+
 
         all_error_analyses = "\n\n".join(state.get("all_error_analyses", []))
         all_error_analyses = _docker_translate(all_error_analyses)
@@ -444,31 +434,55 @@ Please prioritize model architecture improvements and training optimization to e
 
     @node_metrics(active_ctx, active_logger, "execute_and_evaluate")
     async def execute_and_evaluate(state: CoderAgentState) -> dict:
-        """LLM node to run the script inside sandbox inside the background and return acceptance status."""
-        logger.info("─── [Coder Agent] execute_and_evaluate (ASYNCHRONOUS LAUNCH) ───")
+        """
+        Executes the generated bash script inside the sandbox and evaluates the result.
+
+        Option A — Blocking MCP task poll:
+        Calls sandbox.exec_shell which sends exec_sandbox (delivery=poll) to the MCP
+        server and blocks over the persistent SSE connection until the script finishes.
+        stdout/stderr are returned directly; no file polling or background thread loops
+        are needed in app.py.
+        """
+        logger.info("─── [Coder Agent] execute_and_evaluate (BLOCKING via MCP task poll) ───")
         config = state.get("config", {})
-        
+
         sandbox = state.get("sandbox_client")
         iteration = state.get("iteration", 0)
         node_id = state.get("node_id")
+        llm_config = config.get("llm", {}).copy()
+        if "model" not in llm_config:
+            llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
 
         if node_id is not None:
             iter_folder = f"/home/gem/workspace/node_{node_id}"
         else:
             iter_folder = f"/home/gem/workspace/iteration_{iteration}"
 
-        # Execute command inside Sandbox in the background
+        # Resolve training timeout
+        env_timeout = os.environ.get("SANDBOX_TIMEOUT")
+        try:
+            default_timeout = int(env_timeout) if env_timeout else 1800
+        except ValueError:
+            default_timeout = 1800
+        training_timeout = (
+            config.get("mcts", {}).get("training_timeout")
+            or config.get("training_timeout")
+            or config.get("timeout")
+            or default_timeout
+        )
+
+        # ── Step 1: Execute the script (blocking — MCP task poll) ──────────
         start_exec = time.time()
         if sandbox:
-            command = (
-                f"nohup bash -c 'echo $$BASHPID > run.pid; "
-                f"timeout 3600 bash execution_script.sh > stdout.log 2> stderr.log; "
-                f"echo $$? > exit_code.txt' > /dev/null 2>&1 &"
+            logger.info(
+                f"  Executing execution_script.sh in {iter_folder} "
+                f"(timeout={training_timeout}s)"
             )
             success, stdout, stderr = await _sandbox_tool_call(
                 sandbox, "sandbox_exec_shell", "execute_and_evaluate",
-                command=command,
+                command="bash execution_script.sh",
                 cwd=iter_folder,
+                timeout=training_timeout,
             )
         else:
             success, stdout, stderr = False, "", "No sandbox client found in state"
@@ -476,16 +490,34 @@ Please prioritize model architecture improvements and training optimization to e
         exec_time = time.time() - start_exec
         if active_ctx:
             active_ctx.custom_wait_time.set(exec_time)
-        logger.info(f"  Background execution launch {'SUCCEEDED' if success else 'FAILED'} (took {exec_time:.2f}s)")
+        logger.info(
+            f"  Execution {'SUCCEEDED' if success else 'FAILED'} "
+            f"in {exec_time:.2f}s — stdout={len(stdout)}c stderr={len(stderr)}c"
+        )
 
-        if not success:
-            raise RuntimeError(f"Failed to start background execution in sandbox: {stderr}")
+        # ── Step 2: Evaluate results with LLM ────────────────────────────
+        eval_result = await evaluate_execution_results(
+            llm_config=llm_config,
+            task_description=_docker_translate(state.get("task_description", "")),
+            data_prompt=_docker_translate(state.get("data_prompt", "")),
+            python_code=state.get("python_code", ""),
+            stdout=stdout,
+            stderr=stderr,
+        )
 
-        job_id = f"node_{node_id}" if node_id is not None else f"iteration_{iteration}"
+        logger.info(
+            f"  Evaluation decision: {eval_result.get('decision')} "
+            f"score={eval_result.get('validation_score')}"
+        )
 
         return {
-            "status": "ACCEPTED",
-            "job_id": job_id,
+            "stdout": stdout,
+            "stderr": stderr,
+            "decision": eval_result.get("decision", "FIX"),
+            "error_summary": eval_result.get("error_summary"),
+            "validation_score": eval_result.get("validation_score"),
+            "error_message": eval_result.get("error_message", ""),
+            "error_analysis": eval_result.get("error_analysis", ""),
         }
 
     # Graph Setup

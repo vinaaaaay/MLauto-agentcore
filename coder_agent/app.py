@@ -53,7 +53,7 @@ _failed_jobs: Dict[str, Dict[str, Any]] = {}
 _job_store_lock = threading.Lock()
 
 async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> Dict[str, Any]:
-    """Runs LLM generation, writes files, executes synchronously inside sandbox, and evaluates."""
+    """Runs LLM generation, writes files, executes synchronously inside sandbox via MCP, and evaluates."""
     # Build initial state from payload
     config = {
         "llm": {
@@ -102,45 +102,28 @@ async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> 
     langgraph_config = {
         "callbacks": [SessionMetricsCallback(ctx=ctx, metric_logger=metric_logger)]
     }
-    
-    import psutil
-    process = psutil.Process()
-    start_cpu = process.cpu_times()
-    try:
-        start_io = process.io_counters()
-    except Exception:
-        start_io = None
-        
-    t0 = time.time()
-    result = await _graph.ainvoke(initial_state, config=langgraph_config)
-    elapsed = time.time() - t0
-    
-    end_cpu = psutil.Process().cpu_times()
-    active_cpu_s = (end_cpu.user - start_cpu.user) + (end_cpu.system - start_cpu.system)
-    wait_time_s = max(0, elapsed - active_cpu_s)
 
-    io_read_mb = 0.0
-    io_write_mb = 0.0
-    if start_io:
-        try:
-            end_io = psutil.Process().io_counters()
-            io_read_mb = (end_io.read_bytes - start_io.read_bytes) / (1024 * 1024)
-            io_write_mb = (end_io.write_bytes - start_io.write_bytes) / (1024 * 1024)
-        except Exception:
-            pass
-            
+    import resource
+    t0 = time.time()
+    try:
+        result = await _graph.ainvoke(initial_state, config=langgraph_config)
+    finally:
+        # Always close the SSE connection regardless of success or failure.
+        await sandbox.close()
+
+    elapsed = time.time() - t0
+    peak_ram_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+
     emit_event(metric_logger, {
         **ctx.snapshot(),
-        "event_type": "psutil_metrics_graph",
+        "event_type": "resource_metrics",
         "graph_name": "coder_agent_run",
         "graph_e2e_s": round(elapsed, 4),
-        "active_cpu_s": round(active_cpu_s, 4),
-        "wait_time_s": round(wait_time_s, 4),
-        "io_read_MB": round(io_read_mb, 4),
-        "io_write_MB": round(io_write_mb, 4),
+        "peak_ram_MB": round(peak_ram_mb, 4),
         "step_count": 3,
         "iteration_count": payload.get("iteration", 0)
     })
+    logger.info(f"[Coder Agent Run] E2E Time: {elapsed:.2f}s | Peak RAM: {peak_ram_mb:.2f} MB")
 
     return result
 
@@ -153,200 +136,45 @@ def _background_poll_and_evaluate(
 ) -> None:
     """
     Background thread:
-    1. Generates code and submits the job to the sandbox (_run_coder_core).
-    2. Polls the sandbox every 30s until the training job completes.
-    3. Runs LLM evaluation, stores results in memory, and completes the task.
+    1. Runs the full Coder Agent LangGraph pipeline (_run_coder_core).
+       The pipeline generates code, writes it to the sandbox via MCP, then calls
+       exec_sandbox (delivery=poll) which blocks the thread over the SSE connection
+       until the training script finishes — no manual file polling needed.
+    2. Evaluates results inline inside execute_and_evaluate node.
+    3. Stores the formatted result in _completed_jobs / _failed_jobs.
+    4. Marks the Bedrock async task complete so the session reverts to Healthy.
     """
     logger.info(f"[BG] Background thread started for job_id={job_id}")
     try:
-        # Step 1: Run LLM generation and submit job to sandbox
-        logger.info(f"[BG] Initiating code generation & sandbox submission for job_id={job_id}...")
-        asyncio.run(_run_coder_core(payload, invocation_start_ms))
-        logger.info(f"[BG] Sandbox job for job_id={job_id} successfully launched.")
+        # Run the graph to completion (blocks while training runs via MCP task poll)
+        result = asyncio.run(_run_coder_core(payload, invocation_start_ms))
+        logger.info(f"[BG] Graph completed for job_id={job_id}. Storing result.")
 
-        # Step 2: Poll sandbox status until completion
-        poll_interval = 30
-        check_payload = {
-            "job_id": job_id,
-            "config": payload.get("config", {}),
-            "task_description": payload.get("task_description", ""),
-            "data_prompt": payload.get("data_prompt", ""),
+        formatted = {
+            "status": "COMPLETED",
+            "python_code": result.get("python_code", ""),
+            "bash_script": result.get("bash_script", ""),
+            "stdout": result.get("stdout", ""),
+            "stderr": result.get("stderr", ""),
+            "decision": result.get("decision", "FIX"),
+            "validation_score": result.get("validation_score"),
+            "error_message": result.get("error_message", ""),
+            "error_analysis": result.get("error_analysis", ""),
+            "error_summary": result.get("error_summary", ""),
         }
+        with _job_store_lock:
+            _completed_jobs[job_id] = formatted
 
-        elapsed = 0
-        max_time = 1860  # 30 mins + 1 minute buffer
-
-        while True:
-            time.sleep(poll_interval)
-            elapsed += poll_interval
-            if elapsed > max_time:
-                logger.error(f"[BG] Sandbox polling timed out for job_id={job_id} after {elapsed}s.")
-                with _job_store_lock:
-                    _failed_jobs[job_id] = {"status": "FAILED", "error": "Sandbox execution exceeded 30-minute time limit"}
-                break
-
-            logger.info(f"[BG] Polling sandbox for job_id={job_id}...")
-            try:
-                result = asyncio.run(_check_coder_status(check_payload))
-            except Exception as poll_exc:
-                logger.error(f"[BG] Sandbox poll error for job_id={job_id}: {poll_exc}")
-                result = {"status": "RUNNING"}  # optimistic: keep retrying
-
-            status = result.get("status")
-            if status == "RUNNING":
-                logger.info(f"[BG] job_id={job_id} still running.")
-                continue
-            elif status == "COMPLETED":
-                logger.info(f"[BG] job_id={job_id} COMPLETED. Storing result.")
-                with _job_store_lock:
-                    _completed_jobs[job_id] = result
-                break
-            else:  # FAILED or unexpected
-                logger.warning(f"[BG] job_id={job_id} FAILED: {result.get('error', '')}")
-                with _job_store_lock:
-                    _failed_jobs[job_id] = result
-                break
     except Exception as exc:
-        logger.error(f"[BG] Fatal error in background thread for job_id={job_id}: {exc}", exc_info=True)
+        logger.error(
+            f"[BG] Fatal error in background thread for job_id={job_id}: {exc}",
+            exc_info=True,
+        )
         with _job_store_lock:
             _failed_jobs[job_id] = {"status": "FAILED", "error": str(exc)}
     finally:
         app.complete_async_task(task_id)
         logger.info(f"[BG] Background thread finished for job_id={job_id}. Session released.")
-
-
-async def _check_coder_status(payload: Dict[str, Any]) -> Dict[str, Any]:
-    job_id = payload.get("job_id")
-    if not job_id:
-        raise ValueError("Missing 'job_id' for check_status action.")
-        
-    config = payload.get("config", {})
-    sandbox_url = config.get("sandbox_url") or os.environ.get("SANDBOX_URL")
-    sandbox = SandboxClient(sandbox_url)
-    
-    iter_folder = f"/home/gem/workspace/{job_id}"
-    
-    # 1. Check if exit_code.txt exists (job finished)
-    success, stdout_ec, stderr_ec = await sandbox.exec_shell(
-        "test -f exit_code.txt && cat exit_code.txt", cwd=iter_folder
-    )
-    
-    if not success:
-        # exit_code.txt does not exist yet. Check if the job is still running.
-        # Strategy: Try multiple detection methods in order of reliability.
-        
-        # Method 1: Check run.pid if it exists
-        pid_alive = False
-        success_pid, pid_out, _ = await sandbox.exec_shell(
-            "test -f run.pid && cat run.pid", cwd=iter_folder
-        )
-        if success_pid and pid_out.strip():
-            pid = pid_out.strip()
-            alive_check, _, _ = await sandbox.exec_shell(
-                f"kill -0 {pid} 2>/dev/null", cwd=""
-            )
-            if alive_check:
-                pid_alive = True
-        
-        # Method 2: Check if execution_script.sh is running via pgrep
-        if not pid_alive:
-            success_pgrep, pgrep_out, _ = await sandbox.exec_shell(
-                f"pgrep -f 'execution_script.sh' || pgrep -f '{iter_folder}'", cwd=""
-            )
-            if success_pgrep and pgrep_out.strip():
-                pid_alive = True
-        
-        # Method 3: Check if stderr.log is actively growing (take two snapshots)
-        if not pid_alive:
-            success_sz1, sz1_out, _ = await sandbox.exec_shell(
-                "stat -c %s stderr.log 2>/dev/null || echo 0", cwd=iter_folder
-            )
-            if success_sz1:
-                import asyncio as _asyncio
-                await _asyncio.sleep(2)
-                success_sz2, sz2_out, _ = await sandbox.exec_shell(
-                    "stat -c %s stderr.log 2>/dev/null || echo 0", cwd=iter_folder
-                )
-                if success_sz2:
-                    try:
-                        sz1 = int(sz1_out.strip())
-                        sz2 = int(sz2_out.strip())
-                        if sz2 > sz1:
-                            pid_alive = True
-                    except ValueError:
-                        pass
-        
-        if pid_alive:
-            return {"status": "RUNNING"}
-        else:
-            # All detection methods failed — job likely died
-            stderr_content = ""
-            try:
-                stderr_content = await sandbox.read_file(f"{iter_folder}/stderr.log")
-            except Exception:
-                pass
-            return {
-                "status": "FAILED",
-                "error": f"Background execution died unexpectedly. Stderr: {stderr_content}"
-            }
-            
-    # exit_code.txt exists. Retrieve logs and evaluate.
-    exit_code_str = stdout_ec.strip()
-    logger.info(f"Background job {job_id} finished with exit code {exit_code_str}. Evaluating results...")
-    
-    # Read stdout and stderr logs
-    stdout_content = ""
-    stderr_content = ""
-    try:
-        stdout_content = await sandbox.read_file(f"{iter_folder}/stdout.log")
-    except Exception as e:
-        logger.warning(f"Could not read stdout.log: {e}")
-        
-    try:
-        stderr_content = await sandbox.read_file(f"{iter_folder}/stderr.log")
-    except Exception as e:
-        logger.warning(f"Could not read stderr.log: {e}")
-        
-    # Read python and bash scripts
-    python_code = ""
-    try:
-        python_code = await sandbox.read_file(f"{iter_folder}/generated_code.py")
-    except Exception as e:
-        logger.warning(f"Could not read generated_code.py: {e}")
-        
-    bash_script = ""
-    try:
-        bash_script = await sandbox.read_file(f"{iter_folder}/execution_script.sh")
-    except Exception as e:
-        logger.warning(f"Could not read execution_script.sh: {e}")
-        
-    # Initialize LLM config for evaluation
-    llm_config = config.get("llm", {}).copy()
-    if "model" not in llm_config:
-        llm_config["model"] = os.environ.get("LLM_MODEL", "gpt-4o")
-        
-    from coder_agent.agent import evaluate_execution_results
-    
-    eval_result = await evaluate_execution_results(
-        llm_config=llm_config,
-        task_description=payload.get("task_description", ""),
-        data_prompt=payload.get("data_prompt", ""),
-        python_code=python_code,
-        stdout=stdout_content,
-        stderr=stderr_content,
-    )
-    
-    return {
-        "status": "COMPLETED",
-        "python_code": python_code,
-        "bash_script": bash_script,
-        "stdout": stdout_content,
-        "stderr": stderr_content,
-        "decision": eval_result.get("decision", "FIX"),
-        "validation_score": eval_result.get("validation_score"),
-        "error_message": eval_result.get("error_message", ""),
-        "error_analysis": eval_result.get("error_analysis", "")
-    }
 
 
 @app.entrypoint
@@ -355,8 +183,9 @@ def handle(payload: dict) -> dict:
     Main AgentCore app entrypoint.
 
     Actions:
-    - generate_and_run: Generate code, launch sandbox training job, register
-      async task (HealthyBusy), spawn background polling thread, return ACCEPTED.
+    - generate_and_run: Generate code, write to sandbox via MCP write_file, execute
+      via exec_sandbox (delivery=poll, blocking over SSE), evaluate inline, register
+      async task (HealthyBusy), spawn background thread, return ACCEPTED immediately.
     - check_status: In-memory lookup of the result stored by the background
       thread. Returns RUNNING until the thread completes, then COMPLETED/FAILED.
     """

@@ -1,2 +1,3 @@
 .bedrock_*
 test_sandbox_sync.py
+read_sandbox_files.py

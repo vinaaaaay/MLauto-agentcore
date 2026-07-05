@@ -105,9 +105,8 @@ agentcore deploy $DEPLOY_FLAGS "$@" \
     --env OPENAI_API_KEY="${OPENAI_API_KEY:-}" \
     --env OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}" \
     --env LLM_MODEL="${LLM_MODEL:-}" \
-    --env TARGET_IP="${TARGET_IP:-172.31.41.84}" \
-    --env TARGET_PORT="${TARGET_PORT:-8080}" \
-    --env GATEWAY_LAMBDA_NAME="${GATEWAY_LAMBDA_NAME:-fame-sandbox-bastion}"
+    --env SANDBOX_TIMEOUT="${SANDBOX_TIMEOUT:-1800}" \
+    --env SANDBOX_MCP_AUTH_KEY="${SANDBOX_MCP_AUTH_KEY:-}"
 
 echo ""
 echo "=========================================================="
@@ -115,5 +114,5 @@ echo "    Successfully deployed Coder Agent!"
 echo ""
 echo "  Next steps:"
 echo "  1. Copy the agent ARN from the output above."
-2. Configure your orchestrator/parent agent to use this ARN."
+echo "  2. Configure your orchestrator/parent agent to use this ARN."
 echo "=========================================================="

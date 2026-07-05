@@ -10,6 +10,9 @@ langgraph>=0.2.0
 langchain-openai>=0.3.0
 langchain-openrouter==0.2.3
 
+# MCP SDK — SSE transport + experimental task API (exec_sandbox delivery=poll)
+mcp>=1.23,<2
+
 # HTTP client
 httpx>=0.27.0
 
