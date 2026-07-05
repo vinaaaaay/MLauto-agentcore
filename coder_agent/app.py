@@ -50,6 +50,7 @@ app = BedrockAgentCoreApp()
 # Background polling thread writes here; check_status reads and pops.
 _completed_jobs: Dict[str, Dict[str, Any]] = {}
 _failed_jobs: Dict[str, Dict[str, Any]] = {}
+_active_jobs: set = set()
 _job_store_lock = threading.Lock()
 
 async def _run_coder_core(payload: Dict[str, Any], invocation_start_ms: int) -> Dict[str, Any]:
@@ -164,6 +165,7 @@ def _background_poll_and_evaluate(
         }
         with _job_store_lock:
             _completed_jobs[job_id] = formatted
+            _active_jobs.discard(job_id)
 
     except Exception as exc:
         logger.error(
@@ -172,6 +174,7 @@ def _background_poll_and_evaluate(
         )
         with _job_store_lock:
             _failed_jobs[job_id] = {"status": "FAILED", "error": str(exc)}
+            _active_jobs.discard(job_id)
     finally:
         app.complete_async_task(task_id)
         logger.info(f"[BG] Background thread finished for job_id={job_id}. Session released.")
@@ -208,6 +211,10 @@ def handle(payload: dict) -> dict:
             task_id = app.add_async_task(
                 "training_job", metadata={"job_id": job_id}
             )
+            
+            with _job_store_lock:
+                _active_jobs.add(job_id)
+
             logger.info(
                 f"Registered async task (id={task_id}) for job_id={job_id}. "
                 f"Session will report HealthyBusy until training completes."
@@ -254,9 +261,12 @@ def handle(payload: dict) -> dict:
                 elif job_id in _failed_jobs:
                     logger.info(f"check_status: job_id={job_id} → FAILED (in-memory)")
                     return _failed_jobs.pop(job_id)
-                else:
+                elif job_id in _active_jobs:
                     logger.info(f"check_status: job_id={job_id} → RUNNING (background thread active)")
                     return {"status": "RUNNING"}
+                else:
+                    logger.error(f"check_status: job_id={job_id} → UNKNOWN (Container restarted or job lost)")
+                    return {"status": "FAILED", "error": "Job not found. The container may have restarted and lost in-memory state."}
 
         else:
             raise ValueError(f"Unknown action: {action}")
