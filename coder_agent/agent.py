@@ -441,7 +441,7 @@ Please prioritize model architecture improvements and training optimization to e
         """
         Executes the generated bash script inside the sandbox and evaluates the result.
 
-        Option A — Blocking MCP task poll:
+        Blocking MCP task poll:
         Calls sandbox.exec_shell which sends exec_sandbox (delivery=poll) to the MCP
         server and blocks over the persistent SSE connection until the script finishes.
         stdout/stderr are returned directly; no file polling or background thread loops

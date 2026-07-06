@@ -1,317 +1,394 @@
-import os
-import sys
-import json
-import yaml
 import argparse
+import json
 import re
-import boto3
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
-
-# Pricing
-LLM_INPUT_COST_PER_1M = 0.435
-LLM_OUTPUT_COST_PER_1M = 0.87
-
-def get_agent_info(directory: Path):
-    yaml_path = directory / ".bedrock_agentcore.yaml"
-    if not yaml_path.exists():
-        return None
-    
-    try:
-        with open(yaml_path, "r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-        
-        agents = config.get("agents", {})
-        info = []
-        for name, details in agents.items():
-            arn = details.get("bedrock_agentcore", {}).get("agent_arn")
-            if arn:
-                info.append((name, arn))
-        return info
-    except Exception as e:
-        print(f"Error reading {yaml_path}: {e}")
-        return None
-
-def parse_timestamps(run_dir: Path):
-    logs_file = run_dir / "logs.txt"
-    if not logs_file.exists():
-        raise FileNotFoundError(f"logs.txt not found in {run_dir}")
-        
-    start_dt = None
-    end_dt = None
-    
-    ts_pattern = re.compile(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})")
-    
-    with open(logs_file, "r", encoding="utf-8") as f:
-        for line in f:
-            match = ts_pattern.match(line)
-            if match:
-                dt_str = match.group(1)
-                dt = datetime.strptime(dt_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
-                if start_dt is None:
-                    start_dt = dt
-                end_dt = dt
-                
-    if start_dt is None or end_dt is None:
-        raise ValueError(f"Could not parse start or end timestamps in {logs_file}")
-        
-    return start_dt, end_dt
-
-def fetch_metrics(log_group_name, service_name, start_time_epoch, end_time_epoch):
-    logs_client = boto3.client("logs", region_name="ap-south-1")
-    metrics_records = []
-    
-    try:
-        paginator = logs_client.get_paginator('filter_log_events')
-        # We REMOVED the filterPattern to pull llm_call and tool_call along with psutil_metrics
-        pages = paginator.paginate(
-            logGroupName=log_group_name,
-            startTime=int(start_time_epoch * 1000),
-            endTime=int(end_time_epoch * 1000)
-        )
-        
-        for page in pages:
-            events = page.get("events", [])
-            for event in events:
-                msg = event['message'].strip()
-                try:
-                    idx = msg.find('{')
-                    if idx != -1:
-                        data = json.loads(msg[idx:])
-                        if "event_type" in data:
-                            data["_service"] = service_name
-                            data["_timestamp"] = event['timestamp']
-                            metrics_records.append(data)
-                except Exception:
-                    pass
-    except Exception as e:
-        pass
-        
-    return metrics_records
 
 def main():
     parser = argparse.ArgumentParser(description="Analyze Bedrock AgentCore run metrics.")
-    parser.add_argument("--run-dir", type=str, required=True, help="Path to the run output directory (e.g. runs/run_12)")
+    parser.add_argument("--run-dir", type=str, required=True, help="Path to the run output directory (e.g. runs/run_19)")
     args = parser.parse_args()
     
     run_dir = Path(args.run_dir).resolve()
     if not run_dir.exists() or not run_dir.is_dir():
         print(f"Error: run directory '{args.run_dir}' does not exist or is not a directory.")
-        sys.exit(1)
-        
-    try:
-        start_dt, end_dt = parse_timestamps(run_dir)
-        workflow_duration = (end_dt - start_dt).total_seconds()
-    except Exception as e:
-        print(f"Error parsing timestamps: {e}")
-        sys.exit(1)
-        
-    # Query with a buffer of 1 min before and 2 min after
-    start_time = (start_dt - timedelta(minutes=1)).timestamp()
-    end_time = (end_dt + timedelta(minutes=2)).timestamp()
+        return
+
+    cw_logs_path = run_dir / "cw_logs.txt"
+    if not cw_logs_path.exists():
+        print(f"Error: {cw_logs_path} not found.")
+        return
+
+    # Regex to extract e2e time and peak ram
+    e2e_pattern = re.compile(r"\[Orchestrator E2E\] Total time: ([\d\.]+)s \| Peak RAM: ([\d\.]+) MB")
     
-    root_dir = run_dir.parent.parent
-    services = [
-        "MLorchestrator",
-        "coder_agent",
-        "perception_agent",
-        "semantic_agent",
-        "mcts_handler",
-        "mcpserver"
-    ]
-    
-    all_metrics = []
-    
-    # Query CloudWatch
-    for service in services:
-        dir_path = root_dir / service
-        info = get_agent_info(dir_path)
-        if info:
-            for name, arn in info:
-                agent_hash = arn.split("/")[-1]
-                log_group_name = f"/aws/bedrock-agentcore/runtimes/{agent_hash}-DEFAULT"
-                records = fetch_metrics(log_group_name, service, start_time, end_time)
-                all_metrics.extend(records)
+    orch_e2e_duration = 0.0
+    peak_ram_gb = 0.0
+    sync_s3 = 0.0
+    coder_duration = 0.0
+    perception_duration = 0.0
+    semantic_duration = 0.0
+    mcts_duration = 0.0
+    seen_events = set()
+
+    with open(cw_logs_path, "r", encoding="utf-8") as f:
+        for line in f:
+            match = e2e_pattern.search(line)
+            if match:
+                orch_e2e_duration = float(match.group(1))
+                peak_ram_mb = float(match.group(2))
+                peak_ram_gb = round(peak_ram_mb / 1024.0, 4)
                 
-    # Parse from local logs.txt
-    local_logs_path = run_dir / "logs.txt"
-    if local_logs_path.exists():
-        with open(local_logs_path, "r", encoding="utf-8") as f:
+            idx = line.find('{')
+            if idx != -1:
+                try:
+                    data = json.loads(line[idx:])
+                    event_type = data.get("event_type")
+                    if event_type == "psutil_metrics_node":
+                        node_name = data.get("node_name")
+                        timestamp = data.get("timestamp")
+                        e2e_s = data.get("node_e2e_s", 0.0)
+                        
+                        # Filter duplicates using unique tuple
+                        event_key = (event_type, node_name, timestamp, e2e_s)
+                        if event_key in seen_events:
+                            continue
+                        seen_events.add(event_key)
+                        
+                        if node_name == "sync_s3_to_sandbox":
+                            sync_s3 = round(e2e_s, 4)
+                        elif node_name == "call_coding_agent":
+                            coder_duration += e2e_s
+                        elif node_name == "call_perception_agent":
+                            perception_duration += e2e_s
+                        elif node_name == "call_memory_agent":
+                            semantic_duration += e2e_s
+                        elif node_name in ["init_mcts", "select_node", "expand_node", "update_node", "backpropagate", "finalize_results"]:
+                            mcts_duration += e2e_s
+                except Exception:
+                    pass
+
+    coder_duration = round(coder_duration, 4)
+    perception_duration = round(perception_duration, 4)
+    semantic_duration = round(semantic_duration, 4)
+    mcts_duration = round(mcts_duration, 4)
+
+    # Parse coder LLM & tool metrics
+    coder_cw_logs_path = run_dir / "coder_cw_logs.txt"
+    coder_llm_latency = 0.0
+    coder_tool_duration = 0.0
+    coder_peak_ram = 0.0
+    coder_input_tokens = 0
+    coder_cached_tokens = 0
+    coder_output_tokens = 0
+    coder_reasoning_tokens = 0
+
+    if coder_cw_logs_path.exists():
+        with open(coder_cw_logs_path, "r", encoding="utf-8") as f:
             for line in f:
-                if "psutil_metrics" in line:
+                idx = line.find('{')
+                if idx != -1:
                     try:
-                        idx = line.find('{')
-                        if idx != -1:
-                            data = json.loads(line[idx:])
-                            data["_service"] = "MLorchestrator"
-                            data["_timestamp"] = int(start_time * 1000)
-                            all_metrics.append(data)
+                        data = json.loads(line[idx:])
+                        event_type = data.get("event_type")
+                        if event_type == "llm_call":
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = (event_type, run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            
+                            coder_llm_latency += data.get("wall_clock_s") or (latency_ms / 1000.0)
+                            coder_input_tokens += data.get("input_tokens", 0)
+                            coder_cached_tokens += data.get("cached_tokens", 0)
+                            coder_output_tokens += data.get("output_tokens", 0)
+                            coder_reasoning_tokens += data.get("reasoning_tokens", 0)
+                        elif event_type == "psutil_metrics_node":
+                            ram = data.get("peak_RAM_GB")
+                            if ram is not None:
+                                coder_peak_ram = max(coder_peak_ram, float(ram))
+                        elif event_type == "tool_call":
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = ("coder_tool", run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            coder_tool_duration += latency_ms / 1000.0
                     except Exception:
                         pass
 
-    # Deduplicate 
-    unique_metrics = []
-    seen_keys = set()
-    for record in all_metrics:
-        event_type = record.get("event_type")
-        timestamp = record.get("timestamp") or record.get("_timestamp")
-        
-        if event_type in ["psutil_metrics_graph", "psutil_metrics_node"]:
-            name = record.get("node_name") or record.get("graph_name") or "unknown"
-            e2e = record.get("graph_e2e_s") or record.get("node_e2e_s") or 0.0
-            key = (event_type, name, timestamp, round(e2e, 4))
-        elif event_type == "llm_call":
-            key = (event_type, record.get("run_id", timestamp))
-        elif event_type == "tool_call":
-            key = (event_type, record.get("run_id", timestamp))
-        else:
-            continue
-            
-        if key not in seen_keys:
-            seen_keys.add(key)
-            unique_metrics.append(record)
-            
-    all_metrics = unique_metrics
-
-    # Process Metrics
-    orch_latency = {
-        "workflow_duration ( client side )": round(workflow_duration, 4),
-        "orch_runtime_duration": 0.0,
-        "agent_runtime_duration": 0.0,
-        "sync_s3": 0.0,
-    }
+    coder_llm_latency = round(coder_llm_latency, 4)
+    coder_tool_duration = round(coder_tool_duration, 4)
+    coder_input_tokens_non_cached = max(0, coder_input_tokens - coder_cached_tokens)
     
-    orch_cost = {
-        "billed_duration": 0.0,
-        "sync_s3_billed_duration": 0.0,
-        "peak_ram_gb": 0.0
-    }
-    
-    agents = {}
+    # Calculate coder costs
+    input_cost = round((coder_input_tokens_non_cached / 1000000.0) * 0.435, 8)
+    cached_cost = 0.0
+    output_cost = round((coder_output_tokens / 1000000.0) * 0.87, 8)
+    llm_total_cost = round(input_cost + cached_cost + output_cost, 8)
 
-    for record in all_metrics:
-        service = record["_service"]
-        evt = record["event_type"]
-        
-        # We include mcpserver and mcts_handler as well since the user requested it
-        is_subagent = service in ["coder_agent", "perception_agent", "semantic_agent", "mcpserver", "mcts_handler"]
-        if is_subagent and service not in agents:
-            agents[service] = {
-                "agent_latency (s)": {
-                    "duration": 0.0,
-                    "runtime_duration": 0.0,
-                    "llm_latency": 0.0,
-                    "total_tool_call_duration": 0.0
-                },
-                "cost ($)": {
-                    "billed_duration": 0.0,
-                    "peak_ram_gb": 0.0,
-                    "llm_total_cost": 0.0,
-                    "llm_breakdown": {
-                        "input_tokens": 0,
-                        "input_tokens_non_cached": 0,
-                        "cached_tokens": 0,
-                        "output_tokens": 0,
-                        "reasoning_tokens": 0,
-                        "input_cost": 0.0,
-                        "cached_cost": 0.0,
-                        "output_cost": 0.0
-                    }
+    # -------------------------------------------------------------------------
+    # Parse perception metrics
+    # -------------------------------------------------------------------------
+    # E2E duration: from orchestrator cw_logs.txt (call_perception_agent node)
+    # E2E duration was already parsed in the first loop over cw_logs.txt
+
+    # LLM latency & token breakdown: from perception_cw_logs.txt
+    perception_cw_logs_path = run_dir / "perception_cw_logs.txt"
+    perception_llm_latency = 0.0
+    perception_tool_duration = 0.0
+    perception_peak_ram = 0.0
+    perception_input_tokens = 0
+    perception_cached_tokens = 0
+    perception_output_tokens = 0
+    perception_reasoning_tokens = 0
+
+    if perception_cw_logs_path.exists():
+        with open(perception_cw_logs_path, "r", encoding="utf-8") as f:
+            for line in f:
+                idx = line.find('{')
+                if idx != -1:
+                    try:
+                        data = json.loads(line[idx:])
+                        event_type = data.get("event_type")
+                        if event_type == "llm_call":
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = ("perception_llm", run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            perception_llm_latency += data.get("wall_clock_s") or (latency_ms / 1000.0)
+                            perception_input_tokens += data.get("input_tokens", 0)
+                            perception_cached_tokens += data.get("cached_tokens", 0)
+                            perception_output_tokens += data.get("output_tokens", 0)
+                            perception_reasoning_tokens += data.get("reasoning_tokens", 0)
+                        elif event_type == "tool_call":
+                            node_name = data.get("node_name")
+                            if node_name in ["scan_data", "find_description_files"]:
+                                run_id = data.get("run_id") or data.get("timestamp")
+                                latency_ms = data.get("latency_ms", 0.0)
+                                event_key = ("perception_tool", run_id, latency_ms)
+                                if event_key in seen_events:
+                                    continue
+                                seen_events.add(event_key)
+                                perception_tool_duration += latency_ms / 1000.0
+                        elif event_type == "psutil_metrics_node":
+                            ram = data.get("peak_RAM_GB")
+                            if ram is not None:
+                                perception_peak_ram = max(perception_peak_ram, float(ram))
+                    except Exception:
+                        pass
+
+    perception_llm_latency = round(perception_llm_latency, 4)
+    perception_tool_duration = round(perception_tool_duration, 4)
+    perception_input_tokens_non_cached = max(0, perception_input_tokens - perception_cached_tokens)
+    perc_input_cost = round((perception_input_tokens_non_cached / 1000000.0) * 0.435, 8)
+    perc_cached_cost = 0.0
+    perc_output_cost = round((perception_output_tokens / 1000000.0) * 0.87, 8)
+    perc_llm_total_cost = round(perc_input_cost + perc_cached_cost + perc_output_cost, 8)
+
+    # -------------------------------------------------------------------------
+    # Parse semantic metrics
+    # -------------------------------------------------------------------------
+    # E2E duration: from orchestrator cw_logs.txt (call_memory_agent node)
+    # LLM latency & token breakdown: from semantic_cw_logs.txt
+    semantic_cw_logs_path = run_dir / "semantic_cw_logs.txt"
+    semantic_llm_latency = 0.0
+    semantic_tool_duration = 0.0
+    semantic_peak_ram = 0.0
+    semantic_input_tokens = 0
+    semantic_cached_tokens = 0
+    semantic_output_tokens = 0
+    semantic_reasoning_tokens = 0
+
+    if semantic_cw_logs_path.exists():
+        with open(semantic_cw_logs_path, "r", encoding="utf-8") as f:
+            for line in f:
+                idx = line.find('{')
+                if idx != -1:
+                    try:
+                        data = json.loads(line[idx:])
+                        event_type = data.get("event_type")
+                        if event_type == "llm_call":
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = ("semantic_llm", run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            semantic_llm_latency += data.get("wall_clock_s") or (latency_ms / 1000.0)
+                            semantic_input_tokens += data.get("input_tokens", 0)
+                            semantic_cached_tokens += data.get("cached_tokens", 0)
+                            semantic_output_tokens += data.get("output_tokens", 0)
+                            semantic_reasoning_tokens += data.get("reasoning_tokens", 0)
+                        elif event_type == "tool_call":
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = ("semantic_tool", run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            semantic_tool_duration += latency_ms / 1000.0
+                        elif event_type == "psutil_metrics_node":
+                            ram = data.get("peak_RAM_GB")
+                            if ram is not None:
+                                semantic_peak_ram = max(semantic_peak_ram, float(ram))
+                    except Exception:
+                        pass
+
+    semantic_llm_latency = round(semantic_llm_latency, 4)
+    semantic_tool_duration = round(semantic_tool_duration, 4)
+    semantic_input_tokens_non_cached = max(0, semantic_input_tokens - semantic_cached_tokens)
+    sem_input_cost = round((semantic_input_tokens_non_cached / 1000000.0) * 0.435, 8)
+    sem_cached_cost = 0.0
+    sem_output_cost = round((semantic_output_tokens / 1000000.0) * 0.87, 8)
+    sem_llm_total_cost = round(sem_input_cost + sem_cached_cost + sem_output_cost, 8)
+
+    # -------------------------------------------------------------------------
+    # Parse MCTS metrics
+    # -------------------------------------------------------------------------
+    mcts_cw_logs_path = run_dir / "mcts_cw_logs.txt"
+    mcts_peak_ram = 0.0
+
+    if mcts_cw_logs_path.exists():
+        with open(mcts_cw_logs_path, "r", encoding="utf-8") as f:
+            for line in f:
+                idx = line.find('{')
+                if idx != -1:
+                    try:
+                        data = json.loads(line[idx:])
+                        ram = data.get("peak_RAM_GB")
+                        if ram is not None:
+                            mcts_peak_ram = max(mcts_peak_ram, float(ram))
+                    except Exception:
+                        pass
+
+    # -------------------------------------------------------------------------
+    # Parse MCP Server metrics
+    # -------------------------------------------------------------------------
+    mcpserver_cw_logs_path = run_dir / "mcpserver_cw_logs.txt"
+    mcpserver_peak_ram = 0.0
+
+    if mcpserver_cw_logs_path.exists():
+        with open(mcpserver_cw_logs_path, "r", encoding="utf-8") as f:
+            for line in f:
+                idx = line.find('{')
+                if idx != -1:
+                    try:
+                        data = json.loads(line[idx:])
+                        ram = data.get("peak_RAM_GB")
+                        if ram is not None:
+                            mcpserver_peak_ram = max(mcpserver_peak_ram, float(ram))
+                    except Exception:
+                        pass
+
+    # Try parsing client-side metrics if available
+    workflow_duration = 0.0
+    client_metrics_path = run_dir / "client_metrics.json"
+    if client_metrics_path.exists():
+        try:
+            with open(client_metrics_path, "r", encoding="utf-8") as f:
+                c_data = json.load(f)
+                workflow_duration = c_data.get("workflow_duration ( client side )", 0.0)
+        except Exception as e:
+            print(f"Warning: Failed to parse client metrics: {e}")
+
+    # Build the output JSON structure iteratively
+    output = {
+        "orch_latency (s)": {
+            "workflow_duration ( client side )": workflow_duration,
+            "orch_e2e_duration": orch_e2e_duration,
+            "sync_s3": sync_s3
+        },
+        "orch_cost ($)": {
+            "peak_ram_gb": peak_ram_gb
+        },
+        "perception": {
+            "agent_latency (s)": {
+                "total_e2e_duration": perception_duration,
+                "llm_latency": perception_llm_latency,
+                "total_tool_call_duration": perception_tool_duration
+            },
+            "cost ($)": {
+                "peak_ram_gb": perception_peak_ram,
+                "llm_total_cost": perc_llm_total_cost,
+                "llm_breakdown": {
+                    "input_tokens": perception_input_tokens,
+                    "input_tokens_non_cached": perception_input_tokens_non_cached,
+                    "cached_tokens": perception_cached_tokens,
+                    "output_tokens": perception_output_tokens,
+                    "reasoning_tokens": perception_reasoning_tokens,
+                    "input_cost": perc_input_cost,
+                    "cached_cost": perc_cached_cost,
+                    "output_cost": perc_output_cost
                 }
             }
-            
-        # Update Peak RAM for ALL events
-        peak_ram = record.get("peak_RAM_GB") or record.get("peak_ram_gb") or 0.0
-        if service == "MLorchestrator":
-            orch_cost["peak_ram_gb"] = max(orch_cost["peak_ram_gb"], peak_ram)
-        elif is_subagent:
-            agents[service]["cost ($)"]["peak_ram_gb"] = max(agents[service]["cost ($)"]["peak_ram_gb"], peak_ram)
-            
-        if evt == "psutil_metrics_graph":
-            if service == "MLorchestrator":
-                # Active time for orchestrator is e2e_s - wait_s
-                active_time = record.get("graph_e2e_s", 0.0) - record.get("wait_time_s", 0.0)
-                orch_latency["orch_runtime_duration"] += active_time
-                orch_cost["billed_duration"] += active_time # Billed only for active compute in AgentCore
-            elif is_subagent:
-                e2e = record.get("graph_e2e_s", 0.0)
-                active_time = e2e - record.get("wait_time_s", 0.0)
-                agents[service]["agent_latency (s)"]["duration"] += e2e
-                agents[service]["agent_latency (s)"]["runtime_duration"] += active_time
-                agents[service]["cost ($)"]["billed_duration"] += active_time # Billed only for active compute
-                orch_latency["agent_runtime_duration"] += active_time
-                
-        elif evt == "psutil_metrics_node":
-            if service == "MLorchestrator":
-                node_name = record.get("node_name")
-                if node_name == "sync_s3_to_sandbox":
-                    orch_latency["sync_s3"] += record.get("node_e2e_s", 0.0)
-                    orch_cost["sync_s3_billed_duration"] += (record.get("node_e2e_s", 0.0) - record.get("wait_time_s", 0.0))
-                    
-        elif evt == "llm_call" and is_subagent:
-            lat = record.get("wall_clock_s")
-            if lat is None:
-                lat = record.get("latency_ms", 0.0) / 1000.0
-            agents[service]["agent_latency (s)"]["llm_latency"] += lat
-            
-            bd = agents[service]["cost ($)"]["llm_breakdown"]
-            bd["input_tokens"] += record.get("input_tokens", 0)
-            bd["cached_tokens"] += record.get("cached_tokens", 0)
-            bd["output_tokens"] += record.get("output_tokens", 0)
-            bd["reasoning_tokens"] += record.get("reasoning_tokens", 0)
-            
-        elif evt == "tool_call" and is_subagent:
-            lat = record.get("latency_ms", 0.0) / 1000.0
-            agents[service]["agent_latency (s)"]["total_tool_call_duration"] += lat
-
-    # Post-process LLM Costs
-    for service, data in agents.items():
-        bd = data["cost ($)"]["llm_breakdown"]
-        bd["input_tokens_non_cached"] = max(0, bd["input_tokens"] - bd["cached_tokens"])
-        
-        in_cost = (bd["input_tokens_non_cached"] / 1_000_000.0) * LLM_INPUT_COST_PER_1M
-        cached_cost = 0.0 # Standard API doesn't charge for cache or has specific rate, assuming 0
-        out_cost = (bd["output_tokens"] / 1_000_000.0) * LLM_OUTPUT_COST_PER_1M
-        
-        bd["input_cost"] = round(in_cost, 8)
-        bd["cached_cost"] = round(cached_cost, 8)
-        bd["output_cost"] = round(out_cost, 8)
-        
-        data["cost ($)"]["llm_total_cost"] = round(in_cost + cached_cost + out_cost, 8)
-        
-        # Round other fields
-        data["agent_latency (s)"]["duration"] = round(data["agent_latency (s)"]["duration"], 4)
-        data["agent_latency (s)"]["runtime_duration"] = round(data["agent_latency (s)"]["runtime_duration"], 4)
-        data["agent_latency (s)"]["llm_latency"] = round(data["agent_latency (s)"]["llm_latency"], 4)
-        data["agent_latency (s)"]["total_tool_call_duration"] = round(data["agent_latency (s)"]["total_tool_call_duration"], 4)
-        data["cost ($)"]["billed_duration"] = round(data["cost ($)"]["billed_duration"], 8)
-        data["cost ($)"]["peak_ram_gb"] = round(data["cost ($)"]["peak_ram_gb"], 4)
-
-    # Round Orch Latency
-    orch_latency["orch_runtime_duration"] = round(orch_latency["orch_runtime_duration"], 4)
-    orch_latency["agent_runtime_duration"] = round(orch_latency["agent_runtime_duration"], 4)
-    orch_latency["sync_s3"] = round(orch_latency["sync_s3"], 4)
-    
-    orch_cost["billed_duration"] = round(orch_cost["billed_duration"], 8)
-    orch_cost["sync_s3_billed_duration"] = round(orch_cost["sync_s3_billed_duration"], 8)
-    orch_cost["peak_ram_gb"] = round(orch_cost["peak_ram_gb"], 4)
-
-    output = {
-        "orch_latency (s)": orch_latency,
-        "orch_cost ($)": orch_cost
+        },
+        "semantic": {
+            "agent_latency (s)": {
+                "total_e2e_duration": semantic_duration,
+                "llm_latency": semantic_llm_latency,
+                "total_tool_call_duration": semantic_tool_duration
+            },
+            "cost ($)": {
+                "peak_ram_gb": semantic_peak_ram,
+                "llm_total_cost": sem_llm_total_cost,
+                "llm_breakdown": {
+                    "input_tokens": semantic_input_tokens,
+                    "input_tokens_non_cached": semantic_input_tokens_non_cached,
+                    "cached_tokens": semantic_cached_tokens,
+                    "output_tokens": semantic_output_tokens,
+                    "reasoning_tokens": semantic_reasoning_tokens,
+                    "input_cost": sem_input_cost,
+                    "cached_cost": sem_cached_cost,
+                    "output_cost": sem_output_cost
+                }
+            }
+        },
+        "mcts": {
+            "agent_latency (s)": {
+                "total_e2e_duration": mcts_duration
+            },
+            "cost ($)": {
+                "peak_ram_gb": mcts_peak_ram
+            }
+        },
+        "mcpserver": {
+            "cost ($)": {
+                "peak_ram_gb": mcpserver_peak_ram
+            }
+        },
+        "coder": {
+            "agent_latency (s)": {
+                "total_e2e_duration": coder_duration,
+                "llm_latency": coder_llm_latency,
+                "total_tool_call_duration": coder_tool_duration
+            },
+            "cost ($)": {
+                "peak_ram_gb": coder_peak_ram,
+                "llm_total_cost": llm_total_cost,
+                "llm_breakdown": {
+                    "input_tokens": coder_input_tokens,
+                    "input_tokens_non_cached": coder_input_tokens_non_cached,
+                    "cached_tokens": coder_cached_tokens,
+                    "output_tokens": coder_output_tokens,
+                    "reasoning_tokens": coder_reasoning_tokens,
+                    "input_cost": input_cost,
+                    "cached_cost": cached_cost,
+                    "output_cost": output_cost
+                }
+            }
+        }
     }
-    
-    for service, data in agents.items():
-        clean_name = service.replace("_agent", "")
-        output[clean_name] = data
-        
-    out_file = run_dir / "latency_and_cost.json"
-    print(f"Metrics successfully written to {out_file}")
-    
-    # Also write to file
+
     out_file = run_dir / "latency_and_cost.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
+
+    print(f"Metrics successfully written to {out_file}")
+    print(json.dumps(output, indent=2))
 
 if __name__ == "__main__":
     main()
