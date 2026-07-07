@@ -499,20 +499,6 @@ Please prioritize model architecture improvements and training optimization to e
             f"in {exec_time:.2f}s — stdout={len(stdout)}c stderr={len(stderr)}c"
         )
 
-        if sandbox:
-            try:
-                await _sandbox_tool_call(
-                    sandbox, "sandbox_write_file", "execute_and_evaluate",
-                    path=f"{iter_folder}/stdout.txt", content=stdout,
-                )
-                await _sandbox_tool_call(
-                    sandbox, "sandbox_write_file", "execute_and_evaluate",
-                    path=f"{iter_folder}/stderr.txt", content=stderr,
-                )
-
-            except Exception as e:
-                logger.warning(f"Failed to write stdout/stderr logs in sandbox: {e}")
-
         # ── Step 2: Evaluate results with LLM ────────────────────────────
         eval_result = await evaluate_execution_results(
             llm_config=llm_config,
