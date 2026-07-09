@@ -79,16 +79,19 @@ def _get_llm(config: dict = None):
                 "Export it before running: export OPENAI_API_KEY=sk-..."
             )
 
-        is_reasoning_model = any(x in model.lower() for x in ["o1-", "o3-", "gpt-5"])
+        is_openai_reasoning = any(x in model.lower() for x in ["o1-", "o3-", "gpt-5"])
 
-        if is_reasoning_model:
-            logger.info("Detected reasoning model. Forcing temp=1.")
+        if is_openai_reasoning:
+            logger.info("Detected OpenAI reasoning model. Forcing temp=1 and setting reasoning_effort='none'.")
             kwargs = {"model": model, "temperature": 1, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
+            kwargs["reasoning_effort"] = "none"
             if max_tokens is not None:
                 kwargs["max_completion_tokens"] = max_tokens
             llm = ChatOpenAI(**kwargs)
         else:
             kwargs = {"model": model, "temperature": temperature, "api_key": api_key, "max_retries": 1, "timeout": 60.0}
+            if "deepseek" in model.lower():
+                kwargs["reasoning_effort"] = "none"
             if max_tokens is not None:
                 kwargs["max_tokens"] = max_tokens
             llm = ChatOpenAI(**kwargs)
@@ -113,6 +116,16 @@ def _get_llm(config: dict = None):
             "max_retries": 1,
             "timeout": 60.0,
         }
+
+        is_openai_reasoning = any(x in model.lower() for x in ["o1-", "o3-", "gpt-5"])
+        if is_openai_reasoning:
+            logger.info("Detected OpenAI reasoning model on OpenRouter. Forcing temp=1 and setting reasoning_effort='none'.")
+            kwargs["temperature"] = 1
+            kwargs["reasoning_effort"] = "none"
+        elif "deepseek" in model.lower():
+            logger.info("Detected DeepSeek model on OpenRouter. Setting reasoning_effort='none'.")
+            kwargs["reasoning_effort"] = "none"
+
         if max_tokens is not None:
             kwargs["max_tokens"] = max_tokens
         return ChatOpenAI(**kwargs)

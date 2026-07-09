@@ -127,6 +127,14 @@ def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
         
     res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed
 
+    # Generate sticky session IDs once here — reused for all subsequent agent calls
+    # to ensure the same microVM container is reused instead of spinning up a new one
+    # each time, which dramatically reduces AWS billing.
+    mcts_session_id     = str(uuid.uuid4())
+    coder_session_id    = str(uuid.uuid4())
+    semantic_session_id = str(uuid.uuid4())
+    logger.info(f"[Session IDs] mcts={mcts_session_id} | coder={coder_session_id} | semantic={semantic_session_id}")
+
     return {
         "mcts_tree": res,
         "iteration": 0,
@@ -135,7 +143,10 @@ def init_mcts(state: MLorchestratorState) -> Dict[str, Any]:
         "all_error_analyses": [],
         "best_score": res.get("best_score"),
         "best_code": res.get("best_code", ""),
-        "best_node_id": res.get("best_node_id")
+        "best_node_id": res.get("best_node_id"),
+        "mcts_session_id": mcts_session_id,
+        "coder_session_id": coder_session_id,
+        "semantic_session_id": semantic_session_id,
     }
 
 # ─── Node 3: select_node ─────────────────────────────────────────────────────
@@ -162,8 +173,9 @@ def select_node(state: MLorchestratorState) -> Dict[str, Any]:
         "mcts_tree": state.get("mcts_tree")
     }
 
+    mcts_session_id = state.get("mcts_session_id")
     t_start = time.time()
-    res = client.send_task_sync("select", payload)
+    res = client.send_task_sync("select", payload, session_id=mcts_session_id)
     elapsed = time.time() - t_start
     ctx.custom_wait_time.set(elapsed)
     
@@ -228,8 +240,9 @@ def expand_node(state: MLorchestratorState) -> Dict[str, Any]:
         "current_selection": state.get("current_selection")
     }
 
+    mcts_session_id = state.get("mcts_session_id")
     t_start = time.time()
-    res = client.send_task_sync("expand", payload)
+    res = client.send_task_sync("expand", payload, session_id=mcts_session_id)
     elapsed = time.time() - t_start
     ctx.custom_wait_time.set(elapsed)
     
@@ -294,8 +307,9 @@ def call_memory_agent(state: MLorchestratorState) -> Dict[str, Any]:
     }
 
     try:
+        semantic_session_id = state.get("semantic_session_id")
         t_start = time.time()
-        result = client.send_task_sync("retrieve_tutorials", payload)
+        result = client.send_task_sync("retrieve_tutorials", payload, session_id=semantic_session_id)
         elapsed = time.time() - t_start
         ctx.custom_wait_time.set(elapsed)
         logger.info(f"[Semantic E2E Time] {elapsed:.2f}s")
@@ -357,7 +371,9 @@ def call_coding_agent(state: MLorchestratorState) -> Dict[str, Any]:
     client = A2AClient(coding_url, agent_name="CodingAgent")
     client.call_logger = _get_call_logger(state)
 
-    coder_session_id = str(uuid.uuid4())
+    # Reuse the sticky coder session ID from state (set once at init_mcts)
+    # to route all coder calls to the same warm microVM container.
+    coder_session_id = state.get("coder_session_id") or str(uuid.uuid4())
     logger.info(f"Coder agent session_id for this node: {coder_session_id}")
 
     parent_ctx = state.get("current_selection", {}).get("parent_context", {})
@@ -611,8 +627,9 @@ def update_node(state: MLorchestratorState) -> Dict[str, Any]:
         "coding_results": coding_results
     }
 
+    mcts_session_id = state.get("mcts_session_id")
     t_start = time.time()
-    res = client.send_task_sync("update", payload)
+    res = client.send_task_sync("update", payload, session_id=mcts_session_id)
     elapsed = time.time() - t_start
     ctx.custom_wait_time.set(elapsed)
     
@@ -668,8 +685,9 @@ def backpropagate(state: MLorchestratorState) -> Dict[str, Any]:
         "current_selection": state.get("current_selection")
     }
 
+    mcts_session_id = state.get("mcts_session_id")
     t_start = time.time()
-    res = client.send_task_sync("backpropagate", payload)
+    res = client.send_task_sync("backpropagate", payload, session_id=mcts_session_id)
     elapsed = time.time() - t_start
     ctx.custom_wait_time.set(elapsed)
     
@@ -715,8 +733,9 @@ def finalize_results(state: MLorchestratorState) -> Dict[str, Any]:
 
     tree_viz = ""
     try:
+        mcts_session_id = state.get("mcts_session_id")
         t_start = time.time()
-        res = client.send_task_sync("finalize", payload)
+        res = client.send_task_sync("finalize", payload, session_id=mcts_session_id)
         elapsed = time.time() - t_start
         ctx.custom_wait_time.set(elapsed)
         res["mcts_e2e_time"] = res.get("mcts_e2e_time", state.get("mcts_tree", {}).get("mcts_e2e_time", 0.0)) + elapsed

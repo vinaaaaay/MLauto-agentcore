@@ -76,6 +76,8 @@ def main():
     coder_cw_logs_path = run_dir / "coder_cw_logs.txt"
     coder_llm_latency = 0.0
     coder_tool_duration = 0.0
+    coder_tool_sync_duration = 0.0
+    coder_tool_async_duration = 0.0
     coder_peak_ram = 0.0
     coder_input_tokens = 0
     coder_cached_tokens = 0
@@ -114,12 +116,21 @@ def main():
                             if event_key in seen_events:
                                 continue
                             seen_events.add(event_key)
-                            coder_tool_duration += latency_ms / 1000.0
+                            
+                            dur_s = latency_ms / 1000.0
+                            coder_tool_duration += dur_s
+                            tool_name = data.get("tool_name", "")
+                            if tool_name in ["sandbox_write_file", "sandbox_exec_shell", "sandbox_exec_python"]:
+                                coder_tool_async_duration += dur_s
+                            else:
+                                coder_tool_sync_duration += dur_s
                     except Exception:
                         pass
 
     coder_llm_latency = round(coder_llm_latency, 4)
     coder_tool_duration = round(coder_tool_duration, 4)
+    coder_tool_sync_duration = round(coder_tool_sync_duration, 4)
+    coder_tool_async_duration = round(coder_tool_async_duration, 4)
     coder_input_tokens_non_cached = max(0, coder_input_tokens - coder_cached_tokens)
     
     # Calculate coder costs
@@ -138,6 +149,8 @@ def main():
     perception_cw_logs_path = run_dir / "perception_cw_logs.txt"
     perception_llm_latency = 0.0
     perception_tool_duration = 0.0
+    perception_tool_sync_duration = 0.0
+    perception_tool_async_duration = 0.0
     perception_peak_ram = 0.0
     perception_input_tokens = 0
     perception_cached_tokens = 0
@@ -165,15 +178,16 @@ def main():
                             perception_output_tokens += data.get("output_tokens", 0)
                             perception_reasoning_tokens += data.get("reasoning_tokens", 0)
                         elif event_type == "tool_call":
-                            node_name = data.get("node_name")
-                            if node_name in ["scan_data", "find_description_files"]:
-                                run_id = data.get("run_id") or data.get("timestamp")
-                                latency_ms = data.get("latency_ms", 0.0)
-                                event_key = ("perception_tool", run_id, latency_ms)
-                                if event_key in seen_events:
-                                    continue
-                                seen_events.add(event_key)
-                                perception_tool_duration += latency_ms / 1000.0
+                            run_id = data.get("run_id") or data.get("timestamp")
+                            latency_ms = data.get("latency_ms", 0.0)
+                            event_key = ("perception_tool", run_id, latency_ms)
+                            if event_key in seen_events:
+                                continue
+                            seen_events.add(event_key)
+                            
+                            dur_s = latency_ms / 1000.0
+                            perception_tool_duration += dur_s
+                            perception_tool_sync_duration += dur_s
                         elif event_type == "psutil_metrics_node":
                             ram = data.get("peak_RAM_GB")
                             if ram is not None:
@@ -183,6 +197,8 @@ def main():
 
     perception_llm_latency = round(perception_llm_latency, 4)
     perception_tool_duration = round(perception_tool_duration, 4)
+    perception_tool_sync_duration = round(perception_tool_sync_duration, 4)
+    perception_tool_async_duration = round(perception_tool_async_duration, 4)
     perception_input_tokens_non_cached = max(0, perception_input_tokens - perception_cached_tokens)
     perc_input_cost = round((perception_input_tokens_non_cached / 1000000.0) * 0.435, 8)
     perc_cached_cost = 0.0
@@ -197,6 +213,8 @@ def main():
     semantic_cw_logs_path = run_dir / "semantic_cw_logs.txt"
     semantic_llm_latency = 0.0
     semantic_tool_duration = 0.0
+    semantic_tool_sync_duration = 0.0
+    semantic_tool_async_duration = 0.0
     semantic_peak_ram = 0.0
     semantic_input_tokens = 0
     semantic_cached_tokens = 0
@@ -230,7 +248,14 @@ def main():
                             if event_key in seen_events:
                                 continue
                             seen_events.add(event_key)
-                            semantic_tool_duration += latency_ms / 1000.0
+                            
+                            dur_s = latency_ms / 1000.0
+                            semantic_tool_duration += dur_s
+                            tool_name = data.get("tool_name", "")
+                            if tool_name in ["sandbox_write_file", "sandbox_exec_shell", "sandbox_exec_python"]:
+                                semantic_tool_async_duration += dur_s
+                            else:
+                                semantic_tool_sync_duration += dur_s
                         elif event_type == "psutil_metrics_node":
                             ram = data.get("peak_RAM_GB")
                             if ram is not None:
@@ -240,6 +265,8 @@ def main():
 
     semantic_llm_latency = round(semantic_llm_latency, 4)
     semantic_tool_duration = round(semantic_tool_duration, 4)
+    semantic_tool_sync_duration = round(semantic_tool_sync_duration, 4)
+    semantic_tool_async_duration = round(semantic_tool_async_duration, 4)
     semantic_input_tokens_non_cached = max(0, semantic_input_tokens - semantic_cached_tokens)
     sem_input_cost = round((semantic_input_tokens_non_cached / 1000000.0) * 0.435, 8)
     sem_cached_cost = 0.0
@@ -309,7 +336,9 @@ def main():
             "agent_latency (s)": {
                 "total_e2e_duration": perception_duration,
                 "llm_latency": perception_llm_latency,
-                "total_tool_call_duration": perception_tool_duration
+                "total_tool_call_duration": perception_tool_duration,
+                "sync_tool_call_duration": perception_tool_sync_duration,
+                "async_tool_call_duration": perception_tool_async_duration
             },
             "cost ($)": {
                 "peak_ram_gb": perception_peak_ram,
@@ -330,7 +359,9 @@ def main():
             "agent_latency (s)": {
                 "total_e2e_duration": semantic_duration,
                 "llm_latency": semantic_llm_latency,
-                "total_tool_call_duration": semantic_tool_duration
+                "total_tool_call_duration": semantic_tool_duration,
+                "sync_tool_call_duration": semantic_tool_sync_duration,
+                "async_tool_call_duration": semantic_tool_async_duration
             },
             "cost ($)": {
                 "peak_ram_gb": semantic_peak_ram,
@@ -364,7 +395,9 @@ def main():
             "agent_latency (s)": {
                 "total_e2e_duration": coder_duration,
                 "llm_latency": coder_llm_latency,
-                "total_tool_call_duration": coder_tool_duration
+                "total_tool_call_duration": coder_tool_duration,
+                "sync_tool_call_duration": coder_tool_sync_duration,
+                "async_tool_call_duration": coder_tool_async_duration
             },
             "cost ($)": {
                 "peak_ram_gb": coder_peak_ram,

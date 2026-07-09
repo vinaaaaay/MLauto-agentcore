@@ -13,7 +13,7 @@ def calculate_costs(duration_s, ram_gb, vcpu_count):
     ram_cost = duration_h * ram_gb * RAM_HOURLY_RATE
     return cpu_cost, ram_cost
 
-def process_run(json_path, vcpu_count):
+def process_run(json_path, vcpu_count, ram_gb):
     with open(json_path, 'r') as f:
         data = json.load(f)
 
@@ -24,7 +24,7 @@ def process_run(json_path, vcpu_count):
     # Process Orchestrator
     if "orch_latency (s)" in data and "orch_cost ($)" in data:
         dur = data["orch_latency (s)"].get("orch_e2e_duration", 0)
-        ram = data["orch_cost ($)"].get("peak_ram_gb", 0)
+        ram = ram_gb
         cpu_cost, ram_cost = calculate_costs(dur, ram, vcpu_count)
         results["orchestrator"] = {"cpu": cpu_cost, "ram": ram_cost, "total": cpu_cost + ram_cost}
         total_cpu_cost += cpu_cost
@@ -35,7 +35,7 @@ def process_run(json_path, vcpu_count):
     for agent in agents:
         if agent in data:
             dur = data[agent].get("agent_latency (s)", {}).get("total_e2e_duration", 0)
-            ram = data[agent].get("cost ($)", {}).get("peak_ram_gb", 0)
+            ram = ram_gb
             cpu_cost, ram_cost = calculate_costs(dur, ram, vcpu_count)
             results[agent] = {"cpu": cpu_cost, "ram": ram_cost, "total": cpu_cost + ram_cost}
             total_cpu_cost += cpu_cost
@@ -45,7 +45,7 @@ def process_run(json_path, vcpu_count):
     if "mcpserver" in data and "semantic" in data:
         # MCP server duration is semantic agent's tool call duration
         mcp_dur = data["semantic"].get("agent_latency (s)", {}).get("total_tool_call_duration", 0)
-        mcp_ram = data["mcpserver"].get("cost ($)", {}).get("peak_ram_gb", 0)
+        mcp_ram = ram_gb
         cpu_cost, ram_cost = calculate_costs(mcp_dur, mcp_ram, vcpu_count)
         results["mcpserver"] = {"cpu": cpu_cost, "ram": ram_cost, "total": cpu_cost + ram_cost}
         total_cpu_cost += cpu_cost
@@ -57,7 +57,8 @@ def main():
     parser = argparse.ArgumentParser(description="Calculate CPU and RAM compute costs for runs.")
     parser.add_argument("run", nargs="?", help="Specific run name (e.g. run_21) or path to latency_and_cost.json. If omitted, runs all.")
     parser.add_argument("--runs-dir", default="runs", help="Path to the runs directory")
-    parser.add_argument("--vcpus", type=float, default=1.0, help="Number of vCPUs per component")
+    parser.add_argument("--vcpus", type=float, default=2.0, help="Number of vCPUs per component")
+    parser.add_argument("--ram", type=float, default=8.0, help="Fixed RAM per component in GB")
     args = parser.parse_args()
 
     if args.run:
@@ -84,7 +85,7 @@ def main():
 
     for file_path in files:
         run_name = os.path.basename(os.path.dirname(os.path.abspath(file_path)))
-        results, total_cpu, total_ram = process_run(file_path, args.vcpus)
+        results, total_cpu, total_ram = process_run(file_path, args.vcpus, args.ram)
         
         print(f"\nRun: {run_name}")
         print("-" * 75)

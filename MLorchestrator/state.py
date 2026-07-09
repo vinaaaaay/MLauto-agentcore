@@ -50,3 +50,8 @@ class MLorchestratorState(TypedDict, total=False):
     best_code: str
     best_node_id: Optional[int]
     tree_visualization: str
+
+    # ── Sticky Session IDs (reused across iterations to avoid spinning up new containers) ──
+    mcts_session_id: str
+    coder_session_id: str
+    semantic_session_id: str
