@@ -10,8 +10,8 @@ def main():
         # - 17:00 to 18:00
         # - 18:00 to 19:00
         # - 19:00 to 20:00 (which covers the end of Run 11 at 19:23:11)
-        start_time = '2026-07-08T00:00:00Z'
-        end_time = '2026-07-09T00:00:00Z'
+        start_time = '2026-07-08T18:00:00Z'
+        end_time = '2026-07-08T19:00:00Z'
         
         print(f"Querying AWS Cost Explorer from {start_time} to {end_time} (HOURLY granularity)...")
         print("Filtering for Amazon Bedrock AgentCore Memory and vCPU usage only...")

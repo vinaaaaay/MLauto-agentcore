@@ -29,12 +29,21 @@ def classify_error(decision, score, err_sum, stderr):
     
     err_text = ((err_sum or "") + " " + (stderr or "")).lower()
     
-    if "time limit" in err_text or "timeout" in err_text or "timed out" in err_text or "killed" in err_text:
+    # Check for timeout (excluding standard AutoGluon headers)
+    is_timeout = False
+    if "did not complete within" in err_text or "timed out" in err_text or "killed" in err_text:
+        is_timeout = True
+    elif "timeout" in err_text and not ("time limit =" in err_text or "remaining time" in err_text):
+        is_timeout = True
+        
+    if is_timeout:
         return "Timeout / Tool-Layer"
     elif "data selection" in err_text or "data_selection" in err_text:
         return "Data Selection"
-    else:
+    elif any(x in err_text for x in ["keyword argument", "unexpected keyword", "unsupported keyword", "not a valid keyword", "invalid keyword", "does not recognize"]):
         return "Invalid API Argument"
+    else:
+        return "Code Bug / Runtime Error"
 
 def plot_coder_invocations(run_dir):
     run_path = Path(run_dir).resolve()
@@ -102,7 +111,7 @@ def plot_coder_invocations(run_dir):
         output = last_item.get("output", {})
         decision = output.get("decision", "FIX")
         validation_score = output.get("validation_score")
-        error_summary = output.get("error_summary")
+        error_summary = output.get("error_summary") or output.get("error")
         stderr = output.get("stderr", "")
         
         nodes_info[node_id] = {

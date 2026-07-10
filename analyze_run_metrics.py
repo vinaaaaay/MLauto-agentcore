@@ -329,9 +329,6 @@ def main():
             "orch_e2e_duration": orch_e2e_duration,
             "sync_s3": sync_s3
         },
-        "orch_cost ($)": {
-            "peak_ram_gb": peak_ram_gb
-        },
         "perception": {
             "agent_latency (s)": {
                 "total_e2e_duration": perception_duration,
@@ -341,7 +338,6 @@ def main():
                 "async_tool_call_duration": perception_tool_async_duration
             },
             "cost ($)": {
-                "peak_ram_gb": perception_peak_ram,
                 "llm_total_cost": perc_llm_total_cost,
                 "llm_breakdown": {
                     "input_tokens": perception_input_tokens,
@@ -364,7 +360,6 @@ def main():
                 "async_tool_call_duration": semantic_tool_async_duration
             },
             "cost ($)": {
-                "peak_ram_gb": semantic_peak_ram,
                 "llm_total_cost": sem_llm_total_cost,
                 "llm_breakdown": {
                     "input_tokens": semantic_input_tokens,
@@ -381,15 +376,9 @@ def main():
         "mcts": {
             "agent_latency (s)": {
                 "total_e2e_duration": mcts_duration
-            },
-            "cost ($)": {
-                "peak_ram_gb": mcts_peak_ram
             }
         },
         "mcpserver": {
-            "cost ($)": {
-                "peak_ram_gb": mcpserver_peak_ram
-            }
         },
         "coder": {
             "agent_latency (s)": {
@@ -400,7 +389,6 @@ def main():
                 "async_tool_call_duration": coder_tool_async_duration
             },
             "cost ($)": {
-                "peak_ram_gb": coder_peak_ram,
                 "llm_total_cost": llm_total_cost,
                 "llm_breakdown": {
                     "input_tokens": coder_input_tokens,

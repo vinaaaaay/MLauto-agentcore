@@ -22,7 +22,7 @@ def process_run(json_path, vcpu_count, ram_gb):
     total_ram_cost = 0.0
     
     # Process Orchestrator
-    if "orch_latency (s)" in data and "orch_cost ($)" in data:
+    if "orch_latency (s)" in data:
         dur = data["orch_latency (s)"].get("orch_e2e_duration", 0)
         ram = ram_gb
         cpu_cost, ram_cost = calculate_costs(dur, ram, vcpu_count)

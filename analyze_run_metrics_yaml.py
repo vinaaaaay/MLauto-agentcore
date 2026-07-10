@@ -239,6 +239,13 @@ def main():
     totals["llm_latency_s"] = round(totals["llm_latency_s"], 2)
     totals["llm_cost_usd"] = round(totals["llm_cost_usd"], 6)
 
+    # Calculate infra cost for totals (2 vCPUs, 8 GB RAM over e2e_workflow_s)
+    total_hours = totals["e2e_workflow_s"] / 3600.0
+    totals["infra_cost_usd"] = round(
+        total_hours * (2.0 * 0.0895 + 8.0 * 0.00945), 6
+    )
+    totals["total_cost_usd"] = round(totals["infra_cost_usd"] + totals["llm_cost_usd"], 6)
+
     out_per_iter = []
     for it in sorted(per_iter.keys()):
         d = per_iter[it]
@@ -250,6 +257,14 @@ def main():
         d["orchestrator_runtime_s"] = round(max(0.0, d["e2e_workflow_s"] - d["agent_runtime_s"]["total"]), 2)
         
         d["llm_cost_usd"] = round(d["llm_cost_usd"], 6)
+
+        # Calculate infra cost for this iteration
+        iter_hours = d["e2e_workflow_s"] / 3600.0
+        d["infra_cost_usd"] = round(
+            iter_hours * (2.0 * 0.0895 + 8.0 * 0.00945), 6
+        )
+        d["total_cost_usd"] = round(d["infra_cost_usd"] + d["llm_cost_usd"], 6)
+
         out_per_iter.append(d)
 
     final_output = {
