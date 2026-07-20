@@ -5,13 +5,13 @@ def main():
     try:
         client = boto3.client('ce')
         
-        # We query from 17:00 to 20:00 UTC on July 2nd.
+        # We query from 06:00 to 09:00 UTC on July 9th.
         # This will return three 1-hour periods:
-        # - 17:00 to 18:00
-        # - 18:00 to 19:00
-        # - 19:00 to 20:00 (which covers the end of Run 11 at 19:23:11)
-        start_time = '2026-07-08T18:00:00Z'
-        end_time = '2026-07-08T19:00:00Z'
+        # - 06:00 to 07:00 (which covers the start of Run 22 at 06:49)
+        # - 07:00 to 08:00
+        # - 08:00 to 09:00 (which covers the end of Run 22 at 08:50)
+        start_time = '2026-07-09T06:00:00Z'
+        end_time = '2026-07-09T09:00:00Z'
         
         print(f"Querying AWS Cost Explorer from {start_time} to {end_time} (HOURLY granularity)...")
         print("Filtering for Amazon Bedrock AgentCore Memory and vCPU usage only...")

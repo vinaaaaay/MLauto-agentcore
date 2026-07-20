@@ -73,6 +73,8 @@ def main():
 
     # Fallback to client_metrics if needed
     client_metrics_path = run_dir / "client_metrics.json"
+    orchestrator_e2e_s = e2e_workflow_s
+    polling_delay_s = 0.0
     if client_metrics_path.exists():
         try:
             with open(client_metrics_path, "r", encoding="utf-8") as f:
@@ -80,6 +82,7 @@ def main():
                 client_dur = c_data.get("workflow_duration ( client side )", 0.0)
                 if client_dur > e2e_workflow_s:
                     e2e_workflow_s = client_dur
+                    polling_delay_s = client_dur - orchestrator_e2e_s
         except Exception:
             pass
 
@@ -100,8 +103,6 @@ def main():
     def get_iter_for_ts(ts):
         if not ts: return None
         for interval in iteration_intervals:
-            if interval["iteration"] == 0 and ts < interval["start"]:
-                return 0
             if interval["start"] <= ts <= interval["end"]:
                 return interval["iteration"]
         return None
@@ -110,6 +111,9 @@ def main():
         "e2e_workflow_s": e2e_workflow_s,
         "tool_runtime_s": 0.0,
         "orchestrator_runtime_s": 0.0,
+        "s3_sync_s": 0.0,
+        "end_polling_delay_s": round(polling_delay_s, 2),
+        "orch - s3sync - polling_delay": 0.0,
         "agent_runtime_s": {
             "perception": 0.0,
             "semantic": 0.0,
@@ -123,12 +127,9 @@ def main():
     }
     
     per_iter = {}
-    total_other_iters_e2e = 0.0
     for interval in iteration_intervals:
         it = interval["iteration"]
         e2e_iter = (interval["end"] - interval["start"]).total_seconds()
-        if it > 0:
-            total_other_iters_e2e += e2e_iter
             
         per_iter[it] = {
             "iteration": it,
@@ -136,12 +137,11 @@ def main():
             "tool_runtime_s": 0.0,
             "orchestrator_runtime_s": 0.0,
             "agent_runtime_s": {"total": 0.0},
+            "llm_latency_s": 0.0,
             "infra_cost_usd": 0.0,
             "llm_cost_usd": 0.0,
             "total_cost_usd": 0.0
         }
-        
-    per_iter[0]["e2e_workflow_s"] = e2e_workflow_s - total_other_iters_e2e
 
     seen_events = set()
     log_files = ["cw_logs.txt", "perception_cw_logs.txt", "semantic_cw_logs.txt", "coder_cw_logs.txt", "mcts_cw_logs.txt", "mcpserver_cw_logs.txt"]
@@ -188,6 +188,8 @@ def main():
                                 totals["agent_runtime_s"]["total"] += e2e_s
                                 if it is not None:
                                     per_iter[it]["agent_runtime_s"]["total"] += e2e_s
+                            elif node_name == "sync_s3_to_sandbox":
+                                totals["s3_sync_s"] += e2e_s
                                     
                         elif event_type == "tool_call":
                             run_id = data.get("run_id") or data.get("timestamp")
@@ -212,6 +214,8 @@ def main():
                             
                             latency_s = data.get("wall_clock_s") or (latency_ms / 1000.0)
                             totals["llm_latency_s"] += latency_s
+                            if it is not None:
+                                per_iter[it]["llm_latency_s"] += latency_s
                             
                             inp_t = data.get("input_tokens", 0)
                             out_t = data.get("output_tokens", 0)
@@ -228,6 +232,7 @@ def main():
 
     totals["e2e_workflow_s"] = round(totals["e2e_workflow_s"], 2)
     totals["tool_runtime_s"] = round(totals["tool_runtime_s"], 2)
+    totals["s3_sync_s"] = round(totals["s3_sync_s"], 2)
     totals["agent_runtime_s"]["perception"] = round(totals["agent_runtime_s"]["perception"], 2)
     totals["agent_runtime_s"]["semantic"] = round(totals["agent_runtime_s"]["semantic"], 2)
     totals["agent_runtime_s"]["coder"] = round(totals["agent_runtime_s"]["coder"], 2)
@@ -246,6 +251,7 @@ def main():
     )
     totals["total_cost_usd"] = round(totals["infra_cost_usd"] + totals["llm_cost_usd"], 6)
 
+    sum_itr_orch = 0.0
     out_per_iter = []
     for it in sorted(per_iter.keys()):
         d = per_iter[it]
@@ -255,7 +261,9 @@ def main():
         
         # Orchestrator runtime for this specific iteration
         d["orchestrator_runtime_s"] = round(max(0.0, d["e2e_workflow_s"] - d["agent_runtime_s"]["total"]), 2)
+        sum_itr_orch += d["orchestrator_runtime_s"]
         
+        d["llm_latency_s"] = round(d["llm_latency_s"], 2)
         d["llm_cost_usd"] = round(d["llm_cost_usd"], 6)
 
         # Calculate infra cost for this iteration
@@ -266,6 +274,8 @@ def main():
         d["total_cost_usd"] = round(d["infra_cost_usd"] + d["llm_cost_usd"], 6)
 
         out_per_iter.append(d)
+        
+    totals["orch - s3sync - polling_delay"] = round(totals["orchestrator_runtime_s"] - totals["s3_sync_s"] - totals["end_polling_delay_s"], 2)
 
     final_output = {
         "run_id": run_id_name,

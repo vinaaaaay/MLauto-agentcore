@@ -1,0 +1,45 @@
+Experimental Setup
+
+Our system, MLauto-AgentCore, is deployed on AWS Bedrock AgentCore — a managed container runtime that provisions isolated microVM instances per agent. The framework consists of six independently deployed runtimes: 
+1. MLorchestrator (central control plane)
+2. Perception Agent (task and data analysis)
+3. Semantic Agent (tutorial retrieval)
+4. Coder Agent (code generation and execution)
+5. MCTS Handler (search tree management)
+6. Vector Store MCP Server (dense document retrieval). 
+
+Each agent(including Vector Store and MCTS Handler) is packaged as a Docker container on linux/arm64 (AWS Graviton) and registered as a separate AgentCore runtime in the ap-south-1 region. The orchestrator runs the whole pipeline using a LangGraph state machine, invoking downstream agents sequentially via the invoke_agent_runtime API using JSON payloads. Every inter-agent call in this system is blocking in nature, including calls that return an immediate ACCEPTED response with a job ID. In those cases, the actual work is offloaded to a background thread, and the caller subsequently polls for completion, blocking that background thread throughout. 
+
+The overall workflow follows an MCTS-guided search loop. On each iteration, the orchestrator selects and expands a node in the search tree, retrieves relevant ML library tutorials via the semantic agent, invokes the coder agent to generate and execute a training script inside a sandboxed EC2 container, and then updates and backpropagates the results through the tree. By default, the search is configured for up to 10 iterations with the following configuration:
+
+mcts:
+  max_iterations: 10
+  continuous_improvement: true
+  initial_root_children: 3
+  exploration_constant: 1.414
+  max_debug_children: 3
+  max_evolve_children: 3
+  failure_offset: 0
+  failure_penalty_weight: 0.5
+  max_debug_depth: 5
+
+tutorials:
+  num_tutorial_retrievals: 5
+  condense_tutorials: false
+  max_num_tutorials: 5
+  max_tutorial_length: 50000
+  use_tutorial_summary: true
+
+
+The AgentCore invoke_agent_runtime API is strictly synchronous. The caller blocks until the callee returns. For agents with short-lived tasks (perception, semantic retrieval, MCTS operations), this is acceptable. However, the coder agent must generate code, write files into a sandbox, execute a training script that can run for up to 30 minutes, and then evaluate the results and a direct synchronous call would be catastrophic here for a subtle but fundamental reason. AgentCore uses a /ping endpoint to determine whether a session should remain alive. By default, sessions time out after 15 minutes of inactivity, but this ceiling can be extended up to 8 hours by configuring idleRuntimeSessionTimeout. The mechanism is the /ping response status: when an agent returns {"status": "HealthyBusy"}, the platform treats the session as actively processing and suspends the idle session. Conversely, if the agent returns {"status": "Healthy"} or fails to respond altogether, the runtime concludes the container is idle and terminates it. This is precisely why a direct synchronous call on the main thread is catastrophic: the main thread, blocked on a 30 minute invoke_agent_runtime call, cannot concurrently serve /ping requests. From the platform's perspective, the container stops responding to health checks and is killed well before the training job completes. 
+To resolve this, both the orchestrator and the coder agent use a background thread execution pattern. The AgentCore SDK internally manages a dictionary of active asynchronous tasks, and its /ping endpoint simply checks if this dictionary is non-empty; if it is, the SDK automatically returns HealthyBusy. On receiving a request, the agent calls app.add_async_task() to add a task to this internal dictionary, then immediately spawns a Python daemon thread to perform the long running work, and returns an ACCEPTED response with a job ID within milliseconds. This frees the main thread to continue serving health checks, which now return HealthyBusy. The caller then polls a check_status action every 30 seconds until the job completes. Results are stored in an in-memory dictionary protected by a threading.Lock, and app.complete_async_task() is called in the thread's finally block to remove the task from the SDK's internal dictionary, naturally reverting the /ping status back to Healthy.
+
+This polling architecture introduces a persistent double-billing problem: while the coder agent's container is actively blocked waiting for the training script to finish (the actual training executes inside an isolated sandbox on a separate EC2 instance), the orchestrator's container is simultaneously alive and being billed even though it is doing nothing more than sleeping between its check_status polls to the coder agent. Because the orchestrator runs the full LangGraph pipeline on its own background thread and maintains a HealthyBusy status, it accrues billing for the entire duration of the run. This overlap means that during every MCTS iteration's training phase, both the orchestrator and coder agent containers are running and billable simultaneously while waiting for the remote sandbox execution. 
+
+A further constraint is AgentCore's maximum session lifetime. All agent runtimes are configured with idle_runtime_session_timeout and max_lifetime both explicitly set to 28800 seconds (8 hours). This is the maximum value supported by the platform and represents a hard ceiling on container lifespan. For long runs with many iterations or slow training jobs, this requires that the full search completes within 8 hours before the orchestrator container is forcefully recycled by the platform.
+
+To avoid repeated cold starts across iterations, session IDs are generated once at the beginning of the run (during init_mcts) and reused for all subsequent calls to each downstream agent throughout the search. Passing a consistent runtimeSessionId routes each invocation to the same warm container rather than spinning up a new microVM each time. Without this, new containers would spin up for each iteration, which would not only incur severe cold-start latency for the coder, semantic, and MCTS handler containers, but would also significantly increase the total AWS billing cost by accumulating Memory Usage for multiple redundant microVMs.
+
+Code execution within the coder agent happens through a sandbox MCP server running on a dedicated EC2 instance. The coder agent connects directly to the sandbox's public HTTP endpoint to establish a persistent SSE connection. Over this connection, it uses the MCP protocol's task-based execution model (exec_sandbox with delivery=poll) to run training scripts. The client polls task status every 2 seconds over the SSE connection until the script finishes or a configurable timeout (default 1800 seconds, set via SANDBOX_TIMEOUT) is exceeded. 
+
+For telemetry, every agent emits structured JSON events to stdout (captured by CloudWatch) covering LLM API calls (latency, token counts, model), tool calls (latency, status), and per-node resource usage (wall-clock time, peak RSS memory). After each run, the client downloads CloudWatch logs for all six agents alongside S3 artifacts and client-side timing. Agentcore rates are $0.0895 per vCPU-hour and $0.00945 per GB-hour.

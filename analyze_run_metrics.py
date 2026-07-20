@@ -79,6 +79,7 @@ def main():
     coder_tool_sync_duration = 0.0
     coder_tool_async_duration = 0.0
     coder_peak_ram = 0.0
+    coder_internal_node_duration = 0.0
     coder_input_tokens = 0
     coder_cached_tokens = 0
     coder_output_tokens = 0
@@ -106,6 +107,13 @@ def main():
                             coder_output_tokens += data.get("output_tokens", 0)
                             coder_reasoning_tokens += data.get("reasoning_tokens", 0)
                         elif event_type == "psutil_metrics_node":
+                            node_name = data.get("node_name")
+                            timestamp = data.get("timestamp")
+                            e2e_s = data.get("node_e2e_s", 0.0)
+                            event_key = ("coder_psutil", node_name, timestamp, e2e_s)
+                            if event_key not in seen_events:
+                                seen_events.add(event_key)
+                                coder_internal_node_duration += e2e_s
                             ram = data.get("peak_RAM_GB")
                             if ram is not None:
                                 coder_peak_ram = max(coder_peak_ram, float(ram))
@@ -131,6 +139,10 @@ def main():
     coder_tool_duration = round(coder_tool_duration, 4)
     coder_tool_sync_duration = round(coder_tool_sync_duration, 4)
     coder_tool_async_duration = round(coder_tool_async_duration, 4)
+    coder_internal_node_duration = round(coder_internal_node_duration, 4)
+    # Polling delay: orchestrator polls coder every ~30s for job completion.
+    # The gap between coder finishing and orchestrator detecting it.
+    coder_polling_delay = round(max(0.0, coder_duration - coder_internal_node_duration), 4)
     coder_input_tokens_non_cached = max(0, coder_input_tokens - coder_cached_tokens)
     
     # Calculate coder costs
@@ -383,6 +395,9 @@ def main():
         "coder": {
             "agent_latency (s)": {
                 "total_e2e_duration": coder_duration,
+                "polling_delay": coder_polling_delay,
+                "total_e2e_duration - polling_delay": round(coder_duration - coder_polling_delay, 4),
+                "total_e2e_duration - polling_delay - llm_latency - total_tool_call_duration": round(coder_duration - coder_polling_delay - coder_llm_latency - coder_tool_duration, 4),
                 "llm_latency": coder_llm_latency,
                 "total_tool_call_duration": coder_tool_duration,
                 "sync_tool_call_duration": coder_tool_sync_duration,
